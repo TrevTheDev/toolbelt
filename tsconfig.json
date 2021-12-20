@@ -19,7 +19,7 @@
     /* Generates corresponding '.d.ts' file. */
     "declarationMap": true,
     /* Generates a sourcemap for each corresponding '.d.ts' file. */
-    "sourceMap": true,
+    // "sourceMap": true,
     /* Generates corresponding '.map' file. */
     // "outFile": "./",                             /* Concatenate and emit output to single file. */
     "outDir": "build",
@@ -98,8 +98,5 @@
     "forceConsistentCasingInFileNames": true
     /* Disallow inconsistently-cased references to the same file. */
   },
-  "include": [
-    "src/**/*",
-    "tests/**/*"
-  ]
+  "include": ["src"]
 }
