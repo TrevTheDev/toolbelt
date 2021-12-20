@@ -6,6 +6,8 @@
   "scripts": {
     "test": "mocha",
     "lint": "eslint src --ext .ts",
+    "build": "tsc",
+    "preversion": "npm run lint",
     "publish": "npm version patch && git push --tags origin master"
   },
   "keywords": [],
