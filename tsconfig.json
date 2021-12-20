@@ -6,7 +6,7 @@
     // "incremental": true,                         /* Enable incremental compilation */
     "target": "ES2021",
     /* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */
-    "module": "ESNext",
+    "module": "CommonJS",
     /* Specify module code generation: 'none', 'commonjs', 'amd', 'system', 'umd', 'es2015', 'es2020', or 'ESNext'. */
     "lib": [
       "es2021"
@@ -22,7 +22,7 @@
     // "sourceMap": true,
     /* Generates corresponding '.map' file. */
     // "outFile": "./",                             /* Concatenate and emit output to single file. */
-    "outDir": "./build/esm",
+    "outDir": "./build/cjs",
     /* Redirect output structure to the directory. */
     // "rootDir": "./",                             /* Specify the root directory of input files. Use to control the output directory structure with --outDir. */
     // "composite": true,                           /* Enable project compilation */

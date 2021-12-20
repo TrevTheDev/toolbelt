@@ -11,7 +11,7 @@
   "scripts": {
     "test": "mocha",
     "lint": "eslint src --ext .ts",
-    "build": "tsc && tsc -p tsconfig-cjs.json",
+    "build": "tsc && tsc -p tsconfig-esm.json",
     "prepare": "npm run build",
     "prepublishOnly": "npm test && npm run lint && npm run build",
     "preversion": "npm run lint",
