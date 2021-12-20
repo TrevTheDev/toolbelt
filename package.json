@@ -2,7 +2,7 @@
   "name": "@trevthedev/toolbelt",
   "version": "0.0.1",
   "description": "miscellaneous functions and utilities",
-  "main": "src/index.ts",
+  "module": "src/index.ts",
   "scripts": {
     "test": "mocha",
     "lint": "eslint src --ext .ts"
