@@ -1,6 +1,6 @@
 {
   "name": "@trevthedev/toolbelt",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "description": "miscellaneous functions and utilities",
   "module": "src/index.ts",
   "scripts": {
