@@ -6,7 +6,7 @@
   "scripts": {
     "test": "mocha",
     "lint": "eslint src --ext .ts",
-    "publish": "( npm version patch && git push --tags origin master) & npm publish"
+    "publish": "npm version patch && git push --tags origin master && npm publish"
   },
   "keywords": [],
   "author": "TrevTheDev",
