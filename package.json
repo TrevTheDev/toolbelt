@@ -1,21 +1,13 @@
 {
   "name": "@trevthedev/toolbelt",
-  "version": "0.0.3",
+  "version": "0.0.1",
   "description": "miscellaneous functions and utilities",
   "main": "src/index.ts",
   "scripts": {
     "test": "mocha",
     "lint": "eslint src --ext .ts"
   },
-  "keywords": [
-    "forEach",
-    "map",
-    "asynchronous",
-    "filter",
-    "reduce",
-    "lazy",
-    "pull"
-  ],
+  "keywords": [],
   "author": "TrevTheDev",
   "license": "MIT",
   "homepage": "https://github.com/TrevTheDev/toolbelt",
