@@ -1,17 +1,23 @@
-const awaitCallbacksInParallel = (cbArray: ((doneCb: () => void) => void)[]) => {
-  let finalDone: () => void
+/* eslint @typescript-eslint/no-explicit-any: off */
+type FinalDoneCb = (results: any[]) => void
+type DoneCb = (result: any) => void
+
+const awaitCallbacksInParallel = (cbArray: DoneCb[]) => {
+  let finalDone: FinalDoneCb
   let arrayLength: number
   let i = 0
-  const addLink = (linkToAdd: (doneCb: () => void) => void) => {
-    linkToAdd(() => {
+  const results: unknown[] = []
+  const addCallback = (CallbackToAdd: (doneCb: DoneCb) => void) => {
+    CallbackToAdd((result?: unknown) => {
+      results.push(result)
       i += 1
-      if (i === arrayLength) finalDone()
+      if (i === arrayLength) finalDone(results)
     })
   }
-  return (doneCb: () => void) => {
+  return (doneCb: FinalDoneCb) => {
     arrayLength = cbArray.length
     finalDone = doneCb
-    cbArray.forEach((link) => addLink(link))
+    cbArray.forEach((callback) => addCallback(callback))
   }
 }
 export default awaitCallbacksInParallel

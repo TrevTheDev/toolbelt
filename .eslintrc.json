@@ -25,6 +25,12 @@
     "sourceType": "module"
   },
   "rules": {
+    "max-len": [
+      "error",
+      {
+        "code": 120
+      }
+    ],
     "no-console": "off",
     "no-debugger": "off",
     "no-param-reassign": "off",
