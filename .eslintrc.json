@@ -54,7 +54,7 @@
     "node/no-unsupported-features/es-syntax": [
       "error",
       {
-        "version": ">=8.0.0",
+        "version": ">=17.0.0",
         "ignores": [
           "modules"
         ]

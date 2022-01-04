@@ -6,7 +6,7 @@ const {default: promise} = require('../build/cjs/promesse.js')
 
 chai.should()
 
-debugger
+// debugger
 
 const adaptNativeAPI = (NativePromise) => ({
     resolved: (v) => NativePromise.resolve(v),

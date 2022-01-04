@@ -4,9 +4,9 @@ import runFunctionOnlyOnce from './runFunctionOnlyOnce'
 /* eslint @typescript-eslint/no-explicit-any: off */
 
 // eslint-disable-next-line no-use-before-define
-export type OnFulfilled<T> = ((value: T) => T | PromesseLike<T>)
+type OnFulfilled<T> = ((value: T) => T | PromesseLike<T>)
 // eslint-disable-next-line no-use-before-define
-export type OnRejected = ((reason: any) => never | PromesseLike<never>)
+type OnRejected = ((reason: any) => never | PromesseLike<never>)
 
 interface PromesseLike<T> {
     then(

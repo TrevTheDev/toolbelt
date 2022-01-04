@@ -154,7 +154,9 @@ const asyncChain = (
       if (done) throw new Error('asyncChain is marked as done, meaning no elements can be added')
       if (queue[key]) throw new Error(`element with index : ${index} already added`)
       let elementHandlerCb_: ElementHandlerCb
-      if (!elementHandlerCb && !defaultElementHandlerCb) throw new Error('no elementHandlerCb provided and one is required')
+      if (!elementHandlerCb && !defaultElementHandlerCb)
+        throw new Error('no elementHandlerCb provided and one is required')
+
       if (!elementHandlerCb) elementHandlerCb_ = defaultElementHandlerCb_
       else {
         elementHandlerCb_ = processOnlyAfterPreviousElementDone
