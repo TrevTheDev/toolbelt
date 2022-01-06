@@ -1,5 +1,7 @@
 import { expect } from 'chai'
-import { asyncCoupler } from '../src/index'
+import { asyncCoupler, customAsyncCoupler } from '../src/index'
+
+// import type { AsyncCoupler } from '../src/index'
 
 // eslint-disable-next-line @typescript-eslint/no-empty-function
 const noop = () => {}
@@ -44,5 +46,20 @@ describe('asyncCoupler', () => {
     const coupler = asyncCoupler()
     coupler.addIncomingCallback((res) => res())
     expect(() => coupler.addIncomingCallback((res) => res())).to.throw('incomingCallback already added')
+  })
+  it('customised methods', (done) => {
+    let i = 1
+    // eslint-disable-next-line max-len
+    const coupler = customAsyncCoupler('addA', 'addB')
+    coupler.addA((incomingCb) => {
+      console.log(`i: ${i}`)
+      i += 1
+      incomingCb(i)
+    })
+    coupler.addB((result) => {
+      console.log(`result: ${result}`)
+      expect(result).to.equal(2)
+      done()
+    })
   })
 })

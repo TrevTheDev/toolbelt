@@ -1,3 +1,4 @@
+/* eslint-disable no-bitwise */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 type IncomingCallback = (...args: any[])=>any
@@ -11,6 +12,12 @@ interface IncomingCallbacks {
   [index:number]: IncomingCallback
 }
 
+export type AsyncCoupler<outgoingCallbackName extends string, incomingCallbackName extends string> = {
+   [P in outgoingCallbackName | incomingCallbackName]: P extends incomingCallbackName
+   ? (outgoingCallback: OutgoingCallback, index?: number) => void
+   : (incomingCallback: IncomingCallback, index?: number) => void
+}
+
 /**
  * Enables the coupling of two async callbacks: `incomingCallback` and `outgoingCallback`.
  * These callbacks may be added in any sequence.
@@ -19,7 +26,11 @@ interface IncomingCallbacks {
  *
  * If callbacks always arrive in the same order then this is likely not the right tool to use.
  */
-const asyncCoupler = (indexed = false) => {
+export function asyncCoupler <OutgoingCallbackName extends string, IncomingCallbackName extends string>(
+  outgoingCallbackName: OutgoingCallbackName = 'addOutgoingCallback' as OutgoingCallbackName,
+  incomingCallbackName: IncomingCallbackName = 'addIncomingCallback' as IncomingCallbackName,
+  indexed = false,
+): AsyncCoupler<OutgoingCallbackName, IncomingCallbackName> {
   const incomingCallbacks: IncomingCallbacks = {}
   const outgoingCallbacks: OutgoingCallbacks = {}
   let currentIdx = 0
@@ -59,6 +70,14 @@ const asyncCoupler = (indexed = false) => {
       incomingCallbacks[index] = incomingCallback
     }
   }
-  return { addOutgoingCallback, addIncomingCallback }
+  return {
+    [outgoingCallbackName]: addOutgoingCallback,
+    [incomingCallbackName]: addIncomingCallback,
+  } as AsyncCoupler<OutgoingCallbackName, IncomingCallbackName>
 }
-export default asyncCoupler
+
+const defaultAsyncCoupler : (indexed?: boolean) => AsyncCoupler<'addOutgoingCallback', 'addIncomingCallback'> = (
+  indexed,
+) => asyncCoupler(undefined, undefined, indexed)
+
+export default defaultAsyncCoupler
