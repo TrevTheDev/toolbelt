@@ -49,6 +49,7 @@ export function asyncCoupler <OutgoingCallbackName extends string, IncomingCallb
     const incomingCallback = incomingCallbacks[currentIdx]
     if (incomingCallback) {
       delete incomingCallbacks[currentIdx]
+      if (indexed && index <= currentIdx) throw new Error(`index: ${index} already processed`)
       if (indexed) currentIdx += 1
       outgoingCallback(incomingCallback)
       if (indexed) makeNextCallback()
@@ -62,6 +63,7 @@ export function asyncCoupler <OutgoingCallbackName extends string, IncomingCallb
     const outgoingCallback = outgoingCallbacks[currentIdx]
     if (outgoingCallback) {
       delete outgoingCallbacks[currentIdx]
+      if (indexed && index <= currentIdx) throw new Error(`index: ${index} already processed`)
       if (indexed) currentIdx += 1
       outgoingCallback(incomingCallback)
       if (indexed) makeNextCallback()
