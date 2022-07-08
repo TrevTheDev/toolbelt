@@ -1,22 +1,44 @@
 /* eslint-disable no-bitwise */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-type IncomingCallback = (...args: any[])=>any
-type OutgoingCallback = (incomingCallback: IncomingCallback)=>void
+import { queue } from '.'
 
-interface OutgoingCallbacks {
-  [index:number]: OutgoingCallback
+import type { Queue } from '.'
+
+type IncomingCallback = (...args: any[]) => any
+type OutgoingCallback = (incomingCallback: IncomingCallback) => void
+
+type NamedOutgoingCallback<outgoingCallbackName extends string> = {
+  [key in outgoingCallbackName]: (outgoingCallback: OutgoingCallback, index?: number) => void
+}
+type NamedIncomingCallback<incomingCallbackName extends string> = {
+  [key in incomingCallbackName]: (outgoingCallback: OutgoingCallback, index?: number) => void
 }
 
-interface IncomingCallbacks {
-  [index:number]: IncomingCallback
+type AsyncCouplerShared = {
+  readonly incomingCallbacks: Queue<IncomingCallback>
+  readonly outgoingCallbacks: Queue<OutgoingCallback>
 }
 
-export type AsyncCoupler<outgoingCallbackName extends string, incomingCallbackName extends string> = {
-   [P in outgoingCallbackName | incomingCallbackName]: P extends incomingCallbackName
-   ? (outgoingCallback: OutgoingCallback, index?: number) => void
-   : (incomingCallback: IncomingCallback, index?: number) => void
+const modifyAnyThrownErrors = (fn, modifiedErrorMsg) => {
+  try {
+    fn()
+  } catch (e) {
+    throw new Error(modifiedErrorMsg)
+  }
 }
+
+// eslint-disable-next-line max-len
+export type AsyncCoupler<outgoingCallbackName extends string, incomingCallbackName extends string> = NamedOutgoingCallback<outgoingCallbackName> &
+  NamedIncomingCallback<incomingCallbackName> &
+  AsyncCouplerShared
+
+// export type AsyncCoupler<outgoingCallbackName extends string, incomingCallbackName extends string> = {
+//    [P in outgoingCallbackName | incomingCallbackName]: P extends incomingCallbackName
+//    ? (outgoingCallback: OutgoingCallback, index?: number) => void
+//    : (incomingCallback: IncomingCallback, index?: number) => void
+
+// }
 
 /**
  * Enables the coupling of two async callbacks: `incomingCallback` and `outgoingCallback`.
@@ -24,62 +46,60 @@ export type AsyncCoupler<outgoingCallbackName extends string, incomingCallbackNa
  * Once both callbacks have been added: `outgoingCallback(incomingCallback)` is called
  * An optional index is available if callbacks must be indexed and run sequentially
  *
- * If callbacks always arrive in the same order then this is likely not the right tool to use.
+ * If callbacks always arrive in the same order then there are simpler solutions than this one.
  */
-export function asyncCoupler <OutgoingCallbackName extends string, IncomingCallbackName extends string>(
+export function asyncCoupler<OutgoingCallbackName extends string, IncomingCallbackName extends string>(
   outgoingCallbackName: OutgoingCallbackName = 'addOutgoingCallback' as OutgoingCallbackName,
   incomingCallbackName: IncomingCallbackName = 'addIncomingCallback' as IncomingCallbackName,
   indexed = false,
 ): AsyncCoupler<OutgoingCallbackName, IncomingCallbackName> {
-  const incomingCallbacks: IncomingCallbacks = {}
-  const outgoingCallbacks: OutgoingCallbacks = {}
-  let currentIdx = 0
+  const incomingCallbacks = queue<IncomingCallback>()
+  const outgoingCallbacks = queue<OutgoingCallback>()
+  let currentIdx = 1
   const makeNextCallback = () => {
-    const outgoingCallback = outgoingCallbacks[currentIdx]
-    const incomingCallback = incomingCallbacks[currentIdx]
+    const outgoingCallback = outgoingCallbacks.queue[currentIdx]
+    const incomingCallback = incomingCallbacks.queue[currentIdx]
     if (outgoingCallback && incomingCallback) {
-      delete incomingCallbacks[currentIdx]
-      delete outgoingCallbacks[currentIdx]
+      incomingCallbacks.remove(currentIdx)
+      outgoingCallbacks.remove(currentIdx)
       currentIdx += 1
       outgoingCallback(incomingCallback)
       makeNextCallback()
     }
   }
-  const addOutgoingCallback = (outgoingCallback: OutgoingCallback, index = 0) => {
-    const incomingCallback = incomingCallbacks[currentIdx]
+  const addOutgoingCallback = (outgoingCallback: OutgoingCallback, index = 1) => {
+    const incomingCallback = incomingCallbacks.queue[currentIdx]
     if (incomingCallback) {
-      delete incomingCallbacks[currentIdx]
+      incomingCallbacks.remove(currentIdx)
       if (indexed && index <= currentIdx) throw new Error(`index: ${index} already processed`)
       if (indexed) currentIdx += 1
       outgoingCallback(incomingCallback)
       if (indexed) makeNextCallback()
     } else {
-      if (outgoingCallbacks[index]) throw new Error('outgoingCallback already added, another one can not be added.')
-      outgoingCallbacks[index] = outgoingCallback
+      modifyAnyThrownErrors(() => outgoingCallbacks.add(outgoingCallback, index), 'outgoingCallback already added')
     }
   }
 
-  const addIncomingCallback = (incomingCallback: IncomingCallback, index = 0) => {
-    const outgoingCallback = outgoingCallbacks[currentIdx]
+  const addIncomingCallback = (incomingCallback: IncomingCallback, index = 1) => {
+    const outgoingCallback = outgoingCallbacks.queue[currentIdx]
     if (outgoingCallback) {
-      delete outgoingCallbacks[currentIdx]
+      outgoingCallbacks.remove(currentIdx)
       if (indexed && index <= currentIdx) throw new Error(`index: ${index} already processed`)
       if (indexed) currentIdx += 1
       outgoingCallback(incomingCallback)
       if (indexed) makeNextCallback()
     } else {
-      if (incomingCallbacks[index]) throw new Error('incomingCallback already added, another one can not be added.')
-      incomingCallbacks[index] = incomingCallback
+      modifyAnyThrownErrors(() => incomingCallbacks.add(incomingCallback, index), 'incomingCallback already added')
     }
   }
   return {
     [outgoingCallbackName]: addOutgoingCallback,
     [incomingCallbackName]: addIncomingCallback,
+    incomingCallbacks,
+    outgoingCallbacks,
   } as AsyncCoupler<OutgoingCallbackName, IncomingCallbackName>
 }
 
-const defaultAsyncCoupler : (indexed?: boolean) => AsyncCoupler<'addOutgoingCallback', 'addIncomingCallback'> = (
-  indexed,
-) => asyncCoupler(undefined, undefined, indexed)
+const defaultAsyncCoupler = (indexed?: boolean) => asyncCoupler('addOutgoingCallback', 'addIncomingCallback', indexed)
 
 export default defaultAsyncCoupler

@@ -9,6 +9,7 @@ const noop = () => {}
 describe('asyncCoupler', () => {
   it('asyncCoupler', (done) => {
     let i = 1
+    debugger
     const coupler = asyncCoupler()
     coupler.addIncomingCallback((result) => {
       console.log(`result: ${result}`)
@@ -40,6 +41,7 @@ describe('asyncCoupler', () => {
   it('throws an error for outgoingCallback', () => {
     const coupler = asyncCoupler()
     coupler.addOutgoingCallback(noop)
+    debugger
     expect(() => coupler.addOutgoingCallback(noop)).to.throw('outgoingCallback already added')
   })
   it('throws an error for incomingCallback', () => {

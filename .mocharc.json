@@ -3,8 +3,9 @@
     "ts"
   ],
   "spec": [
-    "tests/**/*.ts"
+    "tests/*.ts",
+    "tests apluspromises/*.ts"
   ],
   "require": "ts-node/register",
-  "timeout": 50000
+  "timeout": 1000
 }

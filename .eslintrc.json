@@ -18,19 +18,15 @@
     "eslint:recommended",
     "plugin:mocha/recommended",
     "plugin:node/recommended",
-    "plugin:@typescript-eslint/recommended"
+    "plugin:@typescript-eslint/recommended",
+    "prettier"
   ],
   "parserOptions": {
     "ecmaVersion": 2020,
     "sourceType": "module"
   },
   "rules": {
-    "max-len": [
-      "error",
-      {
-        "code": 120
-      }
-    ],
+    "max-len": [ "error", { "code": 180 } ],
     "no-console": "off",
     "no-debugger": "off",
     "no-param-reassign": "off",
@@ -59,7 +55,13 @@
           "modules"
         ]
       }
-    ]
+    ],
+    "func-call-spacing": "off",
+    "@typescript-eslint/func-call-spacing": ["error"],
+    "comma-spacing": "off",
+    "@typescript-eslint/comma-spacing": ["error"],
+    "no-spaced-func": "off",
+    "implicit-arrow-linebreak": "off"
   },
   "settings": {
     "node": {
