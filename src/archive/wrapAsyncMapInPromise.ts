@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { AsyncMap, ResultCb, ErrorCb } from '../asyncMap'
+import { AnyAsyncMap, ResultCb, ErrorCb } from '../asyncMap'
 import { curriedRunFunctionOnlyOnce, isObjectAndHasExecutableProperty } from '../smallUtils'
 
 // type ResultCb = (...resultArgs)=>void
@@ -115,7 +115,7 @@ const promise = <T>(): AsyncMapPromiseConstructor => {
 }
 
 export const wrapAsyncMapInPromise =
-  <T>(asyncMap?: AsyncMap) =>
+  <T>(asyncMap?: AnyAsyncMap) =>
   (input: any): AsyncMapPromiseConstructor => {
     const pms = promise<T>()
     if (asyncMap) asyncMap(input, pms.resolve, pms.reject)

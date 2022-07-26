@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Input, ResultCb, ErrorCb, AsyncMap, asyncMapToPromise } from './asyncMap'
+import { Input, ResultCb, ErrorCb, AnyAsyncMap, asyncMapToPromise } from './asyncMap'
 import { enhancedMap } from './smallUtils'
 
 type ChainEmptyCb<ResultCbArgs extends any[] = any[], ErrorCbArgs extends any[] = any[]> = (
@@ -30,7 +30,7 @@ export interface AsyncMapChainCallbacks {
 type State = 'init' | 'awaited' | 'asyncMapInProgress' | 'awaitingAsyncMap' | 'awaitingContinue' | 'done' | 'error'
 
 export interface AsyncMapChainIFace {
-  add(...asyncMaps: AsyncMap[]): void
+  add(...asyncMaps: AnyAsyncMap[]): void
   await<InputType extends Input>(input: InputType, callbacks: AsyncMapChainCallbacks): void
   await<InputType extends Input, ResultCbArgs extends any[], ErrorCbArgs extends any[]>(input: InputType, resultCb: ResultCb<ResultCbArgs>, errorCb?: ErrorCb<ErrorCbArgs>): void
   await<InputType extends Input, ResultCbArgs extends any[], ErrorCbArgs extends any[]>(
@@ -58,7 +58,7 @@ const allowedTransitions = {
  * @param asyncMapArray
  * @returns `AsyncMapChainIFace`
  */
-const asyncMapChain = (...asyncMapArray: AsyncMap[]): AsyncMapChainIFace => {
+const asyncMapChain = (...asyncMapArray: AnyAsyncMap[]): AsyncMapChainIFace => {
   let state: State = 'init'
   let resolveAsyncMap: (() => void) | undefined
   let emptyCb: ChainEmptyCb
@@ -68,7 +68,7 @@ const asyncMapChain = (...asyncMapArray: AsyncMap[]): AsyncMapChainIFace => {
   let speakers: ((...args) => any)[] = []
   let itemsAdded = 0
 
-  const q = enhancedMap<AsyncMap>()
+  const q = enhancedMap<AnyAsyncMap>()
 
   const throwError = (msg: string) => {
     state = 'error'
@@ -96,13 +96,13 @@ const asyncMapChain = (...asyncMapArray: AsyncMap[]): AsyncMapChainIFace => {
       }
   }
 
-  const processNext = (currentInput: unknown[], currentAsyncMap: AsyncMap) => {
+  const processNext = (currentInput: unknown[], currentAsyncMap: AnyAsyncMap) => {
     const awaitNextInputThenAwaitNextAsyncMap = (...resultArgs) => {
       const resolveAsyncMap_ = () => {
         const asyncMap = q.shift()
         if (asyncMap === undefined) throwError('should not happen!')
         resolveAsyncMap = undefined
-        processNext(resultArgs, asyncMap as AsyncMap)
+        processNext(resultArgs, asyncMap as AnyAsyncMap)
       }
       resolveAsyncMap = resolveAsyncMap_
       if (q.size !== 0) resolveAsyncMap()
@@ -157,7 +157,7 @@ const asyncMapChain = (...asyncMapArray: AsyncMap[]): AsyncMapChainIFace => {
     }
   }
 
-  const basicAdd = (...asyncMaps: AsyncMap[]) => {
+  const basicAdd = (...asyncMaps: AnyAsyncMap[]) => {
     asyncMaps.forEach((asyncMap) => {
       q.set(itemsAdded, asyncMap)
       itemsAdded += 1
@@ -190,7 +190,7 @@ const asyncMapChain = (...asyncMapArray: AsyncMap[]): AsyncMapChainIFace => {
       if (cbs.onEmptyChain === undefined) {
         if (cbs.onFinalResult === undefined) emptyCb = (_result, continueAwaiting) => continueAwaiting()
         else if (q.size === 0) {
-          iFace.add = (...asyncMaps: AsyncMap[]) => {
+          iFace.add = (...asyncMaps: AnyAsyncMap[]) => {
             emptyCb = (result, _continueAwaiting, fResultCb) => fResultCb(...result)
             iFace.add = basicAdd
             iFace.add(...asyncMaps)

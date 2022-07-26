@@ -2,14 +2,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import '../reverseForEach'
 import { globalReverseForEach as reverseForEach } from '..'
-import type { AsyncMap, AsyncMapWithCancel, ResultCb, ErrorCb, CancelCb } from '../asyncMap'
+import type { AnyAsyncMap, AsyncMapWithCancel, ResultCb, ErrorCb, CancelCb } from '../asyncMap'
 
-type AsyncMapArray = (AsyncMap | AsyncMapWithCancel)[]
+type AsyncMapArray = (AnyAsyncMap | AsyncMapWithCancel)[]
 
 interface AwaitChainInSeries {
-  andThen: (asyncMap: AsyncMap | AsyncMapWithCancel) => AwaitChainInSeries
-  add: (asyncMap: AsyncMap | AsyncMapWithCancel) => AwaitChainInSeries
-  before: (asyncMap: AsyncMap | AsyncMapWithCancel) => AwaitChainInSeries
+  andThen: (asyncMap: AnyAsyncMap | AsyncMapWithCancel) => AwaitChainInSeries
+  add: (asyncMap: AnyAsyncMap | AsyncMapWithCancel) => AwaitChainInSeries
+  before: (asyncMap: AnyAsyncMap | AsyncMapWithCancel) => AwaitChainInSeries
   await: (input: unknown[], result: ResultCb, error?: ErrorCb) => CancelCb | undefined
 }
 
@@ -26,7 +26,7 @@ const serialCallbackChain = (...asyncMapArray: AsyncMapArray): AwaitChainInSerie
   let currentCancelFn: CancelCb | void
   let i = 0
 
-  const addLink = (asyncMap: AsyncMap | AsyncMapWithCancel, finalError: ErrorCb | undefined) => {
+  const addLink = (asyncMap: AnyAsyncMap | AsyncMapWithCancel, finalError: ErrorCb | undefined) => {
     const fn = priorChain
     priorChain = (...result) => {
       debugger

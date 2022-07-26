@@ -2,7 +2,15 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 // import './reverseForEach'
 // import { globalReverseForEach as reverseForEach } from '.'
-import { Input, ResultCb, ErrorCb, AsyncMap, asyncMapToPromise } from './asyncMap'
+import {
+  AnyAsyncMap,
+  asyncMapToPromise,
+  ErrorCbAny,
+  GetErrorCbArg,
+  GetResultCbArg,
+  ListenersAny,
+  ResultCbAny,
+} from './asyncMap'
 import { enhancedMap } from './smallUtils'
 
 // type AsyncMap = (input: any, resultCb: (...results: any) => any, errorCb: (...results: any) => any, ...speakers: ((...args) => any)[]) => any
@@ -23,51 +31,38 @@ export interface AsyncMapChainCallbacks {
 
 type State = 'awaited' | 'asyncMapInProgress' | 'done' | 'error' | 'cancelled'
 
-interface StaticAsyncMapChainController<T = void> {
+interface StaticAsyncMapChainController<T extends AnyAsyncMap[]> {
   readonly state: State
   cancel: () => void
   controller?: T
 }
 
-export interface StaticAsyncMapChainIFace<
-  InputType extends Input = unknown,
-  ResultCbArgs extends any[] = unknown[],
-  ErrorCbArgs extends any[] = unknown[],
-  Speakers extends [resultCb: ResultCb<ResultCbArgs>, errorCb?: ErrorCb<ErrorCbArgs>, ...speakers: ((...args) => any)[]] = [
-    resultCb: ResultCb<ResultCbArgs>,
-    errorCb: ErrorCb<ErrorCbArgs>,
-    ...speakers: ((...args: unknown[]) => unknown)[],
-  ],
-  StaticAsyncMapChainControllerType = void,
-> {
-  add(...asyncMaps: AsyncMap<InputType, ResultCbArgs, ErrorCbArgs, Speakers, StaticAsyncMapChainControllerType>[]): void
-  await(input: InputType, resolve: (value) => void, reject?: (reason?) => void): void
-  await(input: InputType, resultCb: ResultCb<ResultCbArgs>, errorCb?: ErrorCb<ErrorCbArgs>, ...speakers: Speakers): StaticAsyncMapChainController<StaticAsyncMapChainControllerType>
-  thenable(input): Promise<ResultCbArgs>
-  // if(condition: ((...results)=>boolean)|boolean, asyncMap: AsyncMap): StaticAsyncMapChainIFace
+export interface StaticAsyncMapChainIFace<T extends AnyAsyncMap[]> {
+  add(...asyncMaps: T): void
+  await<Input, ResultCb extends (value) => void, ErrorCb extends (reason?) => void | never>(
+    input: Input,
+    resolve: ResultCb,
+    reject?: ErrorCb,
+  ): void
+  await<
+    Input,
+    ResultCb extends (value) => void,
+    ErrorCb extends (reason?) => void | never,
+    Listeners extends ((...args: never[]) => void)[] = [],
+  >(
+    input: Input,
+    resultCb: ResultCb,
+    errorCb: ErrorCb,
+    ...listeners: Listeners
+  ): StaticAsyncMapChainController<T>
+  thenable(input): Promise<T>
 }
-// type x = StaticAsyncMapChainIFace['await']
 
-// interface OutputCoordinator {
-//   // eslint-disable-next-line no-use-before-define
-//   if(condition: ((...results) => boolean) | boolean, aNode: ANode): StaticAsyncMapChainIFace
-// }
-
-// type InputCoordinator = (requestHandler: (...requestArgs, resultsCb: (...inputArgs) => void) => void) => void
-
-// interface ANode {
-//   asyncMap: AsyncMap
-//   await<InputType extends Input, ResultCbArgs extends any[], ErrorCbArgs extends any[]>(
-//     input: InputType,
-//     resultCb: ResultCb<ResultCbArgs>,
-//     errorCb?: ErrorCb<ErrorCbArgs> | undefined,
-//     ...speakers: ((...args) => any)[]
-//   ): Controller
-//   outputCoordinator?: OutputCoordinator
-//   inputCoordinator?: InputCoordinator
-// }
-
-const stateMachine = (startState: State, resultCb?: (...args) => void, errorCb?: (...args) => void) => {
+const stateMachine = (
+  startState: State,
+  resultCb?: (...args) => void,
+  errorCb?: (...args) => void,
+) => {
   const allowedTransitions = {
     awaited: ['asyncMapInProgress', 'error'],
     asyncMapInProgress: ['awaited', 'done', 'error', 'cancelled'],
@@ -91,25 +86,42 @@ const stateMachine = (startState: State, resultCb?: (...args) => void, errorCb?:
     },
     toError: (...results): never | void => {
       if (allowedTransitions[state].length === 0) {
-        if (throwOnMultipleResolves) throw new Error(`errorCb called multiple times, or an uncaught exception was thrown post resolution. Results returned: ${results.toString()}`)
+        if (throwOnMultipleResolves) {
+          throw new Error(
+            `errorCb called multiple times, or an uncaught exception was thrown post resolution. Results returned: ${results.toString()}`,
+          )
+        }
         return
       }
       state = 'error'
-      if (!errorCb) throw new Error(`uncaught exception thrown or 'errorCb' made, but no 'onError' callback was provided to handle it. Results returned: ${results.toString()}`)
+      if (!errorCb) {
+        throw new Error(
+          `uncaught exception thrown or 'errorCb' made, but no 'onError' callback was provided to handle it. Results returned: ${results.toString()}`,
+        )
+      }
       errorCb(...results)
     },
     toDone: (...results) => {
       if (allowedTransitions[state].length === 0) {
-        if (throwOnMultipleResolves) throw new Error(`errorCb called multiple times, or an uncaught exception was thrown post resolution. Results returned: ${results.toString()}`)
+        if (throwOnMultipleResolves) {
+          throw new Error(
+            `errorCb called multiple times, or an uncaught exception was thrown post resolution. Results returned: ${results.toString()}`,
+          )
+        }
         return
       }
       if (iFace.to('done')) {
-        if (!resultCb) throw new Error(`a result was returned but no 'onResult' callback was provided to handle it. Results returned: ${results.toString()}`)
+        if (!resultCb) {
+          throw new Error(
+            `a result was returned but no 'onResult' callback was provided to handle it. Results returned: ${results.toString()}`,
+          )
+        }
         resultCb(...results)
       }
     },
     toCancelled: () => {
-      if (allowedTransitions[state].length === 0) throw new Error(`chain is already in a 'done', 'error', or 'cancelled' state`)
+      if (allowedTransitions[state].length === 0)
+        throw new Error(`chain is already in a 'done', 'error', or 'cancelled' state`)
       if (iFace.to('cancelled')) throwOnMultipleResolves = false
     },
     get state() {
@@ -119,22 +131,37 @@ const stateMachine = (startState: State, resultCb?: (...args) => void, errorCb?:
   return iFace
 }
 
-const enhancedAsyncMap = (asyncMap, throwChainError: (error) => never | void, beforeBeingResolvedCb: () => void) => {
+const enhancedAsyncMap = <T extends AnyAsyncMap>(
+  asyncMap: T,
+  throwChainError: (error: unknown) => never | void,
+  beforeBeingResolvedCb: () => void,
+): T => {
   let resolvedFnName: string
 
-  const resolveOnlyOnce =
-    (resolutionFnName: string, resolutionFn: (...args) => void) =>
-    (...args) => {
-      if (resolvedFnName)
-        throwChainError(resolvedFnName !== resolutionFnName ? `cannot call '${resolutionFnName}' after '${resolvedFnName}'` : `cannot call '${resolutionFnName}' more than once`)
-      else {
-        resolvedFnName = resolutionFnName
-        beforeBeingResolvedCb()
-        resolutionFn(...args)
+  const resolveOnlyOnce = <R extends GetResultCbArg<T> | GetErrorCbArg<T>>(
+    resolutionFnName: string,
+    resolutionFn: R,
+  ) =>
+    ((result) => {
+      if (resolvedFnName) {
+        return throwChainError(
+          resolvedFnName !== resolutionFnName
+            ? `cannot call '${resolutionFnName}' after '${resolvedFnName}'`
+            : `cannot call '${resolutionFnName}' more than once`,
+        )
       }
-    }
+      resolvedFnName = resolutionFnName
+      beforeBeingResolvedCb()
+      return resolutionFn(result)
+    }) as R
 
-  return (input, resultCb, errorCb, ...speakers) => asyncMap(input, resolveOnlyOnce('resultCb', resultCb), resolveOnlyOnce('errorCb', errorCb), ...speakers)
+  return ((input, resultCb, errorCb, ...listeners) =>
+    asyncMap(
+      input,
+      resolveOnlyOnce('resultCb', resultCb),
+      resolveOnlyOnce('errorCb', errorCb),
+      ...listeners,
+    )) as T
 }
 
 /**
@@ -142,87 +169,51 @@ const enhancedAsyncMap = (asyncMap, throwChainError: (error) => never | void, be
  * @param asyncMapArray
  * @returns `AsyncMapChainIFace`
  */
-const staticAsyncMapChain = <
-  InputType extends Input = unknown,
-  ResultCbArgs extends any[] = unknown[],
-  ErrorCbArgs extends any[] = unknown[],
-  Speakers extends [resultCb: ResultCb<ResultCbArgs>, errorCb?: ErrorCb<ErrorCbArgs>, ...speakers: ((...args) => any)[]] = [
-    resultCb: ResultCb<ResultCbArgs>,
-    errorCb: ErrorCb<ErrorCbArgs>,
-  ],
-  StaticAsyncMapChainControllerType = void,
->(
-  ...asyncMapArray: AsyncMap<InputType, ResultCbArgs, ErrorCbArgs, Speakers, StaticAsyncMapChainControllerType>[]
-) => {
-  const q = enhancedMap<AsyncMap<InputType, ResultCbArgs, ErrorCbArgs, Speakers, StaticAsyncMapChainControllerType>>()
+const staticAsyncMapChain = <T extends AnyAsyncMap[]>(...asyncMapArray: T) => {
+  const q = enhancedMap<AnyAsyncMap>()
 
-  const iFace: StaticAsyncMapChainIFace<InputType, ResultCbArgs, ErrorCbArgs, Speakers, StaticAsyncMapChainControllerType> = {
+  const iFace: StaticAsyncMapChainIFace<T> = {
     add: (...asyncMaps) => {
       asyncMaps.forEach((asyncMap) => q.add(asyncMap))
     },
 
-    await: (input: InputType, resultCb, errorCb?, ...speakers) => {
+    await: (input, resultCb, errorCb?, ...speakers) => {
       const state = stateMachine('awaited', resultCb, errorCb)
 
       let index = 0
       const queue = [...q.values]
 
-      const aController: StaticAsyncMapChainController<StaticAsyncMapChainControllerType> = {
+      // debugger
+
+      const aController: StaticAsyncMapChainController<T> = {
         get state() {
           return state.state
         },
         cancel: () => state.to('cancelled'),
       }
 
-      // const finalResultCb: ResultCb<ResultCbArgs> = (...results: ResultCbArgs) => {
-      //   if (state.to('done')) resultCb(...results)
-      //   else throw new Error('resultCb called more than once')
-      // }
+      const processNext = (currentInput, currentAsyncMap) => {
+        const processNextAsyncMapOrEnd = (...resultArgs) => {
+          if (index === queue.length) return state.toDone(...resultArgs)
 
-      // const canResolveOnlyOnce = () => {
-      //   let resolvedFnName: string
-      //   return (resolutionFnName: string, resolutionFn: ((...args: ResultCbArgs) => void) | ((...args: ErrorCbArgs) => void)) =>
-      //     (...args: ResultCbArgs) => {
-      //       if (resolvedFnName) {
-      //         state.toError(
-      //           resolvedFnName !== resolutionFnName ? `cannot call '${resolutionFnName}' after '${resolvedFnName}'` : `cannot call '${resolutionFnName}' more than once`,
-      //         )
-      //       } else {
-      //         resolvedFnName = resolutionFnName
-      //         delete aController.controller
-      //         resolutionFn(...args)
-      //       }
-      //     }
-      // }
-
-      const processNext = (currentInput: ResultCbArgs, currentAsyncMap: (input_, resultCbs_, errorCb_, ...listeners) => any) => {
-        const processNextAsyncMapOrEnd = (...resultArgs: ResultCbArgs) => {
-          if (index === queue.length) state.toDone(...resultArgs)
-          else {
-            const map = queue[index] as unknown as (input_, resultCbs_, errorCb_, ...listeners) => any
-            index += 1
-            if (state.to('awaited')) processNext(resultArgs, map)
-          }
+          const map = queue[index]
+          index += 1
+          return state.to('awaited') ? processNext(resultArgs, map) : undefined
         }
 
         let hasResolved = false
         if (state.to('asyncMapInProgress')) {
           try {
-            const asyncMapController = enhancedAsyncMap(
-              currentAsyncMap,
-              (...args) => state.toError(...args),
-              () => {
-                delete aController.controller
-                hasResolved = true
-              },
-            )(currentInput as InputType, processNextAsyncMapOrEnd, state.toError, ...speakers)
-
-            // const asyncMapController = currentAsyncMap(
-            //   currentInput as InputType,
-            //   resolver(resolveAsyncMapOnlyOnce('resultCb', processNextAsyncMapOrEnd)),
-            //   resolver(resolveAsyncMapOnlyOnce('errorCb', finalErrorCb)),
-            //   ...speakers,
-            // )
+            const eaMap = enhancedAsyncMap(currentAsyncMap, state.toError, () => {
+              delete aController.controller
+              hasResolved = true
+            })
+            const asyncMapController = eaMap(
+              currentInput,
+              processNextAsyncMapOrEnd,
+              state.toError,
+              ...speakers,
+            )
             /** if currentAsyncMap is not sync, then set asyncMapController */
             if (!hasResolved) aController.controller = asyncMapController
           } catch (e) {
@@ -233,7 +224,7 @@ const staticAsyncMapChain = <
         }
       }
 
-      processNext(input as ResultCbArgs, (i, resultsCb) => resultsCb(i))
+      processNext(input, (i, resultsCb) => resultsCb(i))
 
       return aController
     },

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { enhancedMap } from './smallUtils'
-import type { AsyncMap, ErrorCb, ResultCb } from './asyncMap'
+import type { AnyAsyncMap, ErrorCb, ResultCb } from './asyncMap'
 import type { EnhancedMap } from './smallUtils'
 
 type ChainEmptyCb<ResultCbArgs extends any[] = any[], ErrorCbArgs extends any[] = any[]> = (
@@ -10,15 +10,15 @@ type ChainEmptyCb<ResultCbArgs extends any[] = any[], ErrorCbArgs extends any[] 
 ) => void
 
 interface AsyncMapChain {
-  add: (asyncMap: AsyncMap, index?: number) => void
-  addAsyncMaps: (...asyncMaps: AsyncMap[]) => void
+  add: (asyncMap: AnyAsyncMap, index?: number) => void
+  addAsyncMaps: (...asyncMaps: AnyAsyncMap[]) => void
   await: <InputType, ResultCbArgs extends any[], ErrorCbArgs extends any[]>(
     input: InputType,
     resultCb: ResultCb<ResultCbArgs>,
     errorCb?: ErrorCb<ErrorCbArgs>,
     chainEmptyCb?: ChainEmptyCb<ResultCbArgs, ErrorCbArgs>,
   ) => void
-  readonly queue: EnhancedMap<AsyncMap>
+  readonly queue: EnhancedMap<AnyAsyncMap>
   readonly totalAsyncMapsDone: number
   readonly state: 'init' | 'awaited' | 'awaiting' | 'empty' | 'done' | 'error'
 }
@@ -32,7 +32,7 @@ interface AsyncMapChain {
  * @param autoDoneOnEmptyChain whether to end the chain once the initial chain is empty.  Default is true
  * @returns `AsyncMapChain`
  */
-const asyncMapChain = (asyncMapArray?: AsyncMap[], autoDoneOnEmptyChain = true): AsyncMapChain => {
+const asyncMapChain = (asyncMapArray?: AnyAsyncMap[], autoDoneOnEmptyChain = true): AsyncMapChain => {
   let currentItemIndex = 0
   let autoItemIndex = 0
   let chainResultCb
@@ -41,7 +41,7 @@ const asyncMapChain = (asyncMapArray?: AsyncMap[], autoDoneOnEmptyChain = true):
   let lastResult: any
   let state: 'init' | 'awaited' | 'awaiting' | 'empty' | 'done' | 'error' = 'init'
 
-  const q = enhancedMap<AsyncMap>()
+  const q = enhancedMap<AnyAsyncMap>()
 
   const processNextItem = (): void => {
     setImmediate(() => {
@@ -128,7 +128,7 @@ export const awaitAsyncMapChain = Symbol('awaitAsyncMapChain')
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Array<T> {
-    [awaitAsyncMapChain]: (this: AsyncMap[], input: any, resultCb: ResultCb, errorCb?: ErrorCb) => void
+    [awaitAsyncMapChain]: (this: AnyAsyncMap[], input: any, resultCb: ResultCb, errorCb?: ErrorCb) => void
   }
 }
 
