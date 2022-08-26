@@ -1,4 +1,3 @@
-/* eslint-disable mocha/no-exclusive-tests */
 import { describe, it, expect } from 'vitest'
 
 import asyncMapChain, { awaitAsyncMapChain } from '../src/asyncMapChain2'
@@ -22,11 +21,14 @@ describe('asyncMapChain', () => {
     }))
   it('asyncMapChain on native array', () =>
     new Promise((done) => {
-      ;[asyncAdd('A'), add('B'), asyncAdd('C'), add('D'), asyncAdd('E')][awaitAsyncMapChain]('3', (result) => {
-        console.log(`Final Result: ${result}`)
-        expect(result).toEqual('3ABCDE')
-        done(undefined)
-      })
+      ;[asyncAdd('A'), add('B'), asyncAdd('C'), add('D'), asyncAdd('E')][awaitAsyncMapChain](
+        '3',
+        (result) => {
+          console.log(`Final Result: ${result}`)
+          expect(result).toEqual('3ABCDE')
+          done(undefined)
+        },
+      )
     }))
   it('asyncMapChain basic', () =>
     new Promise((done) => {

@@ -1,90 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // import { IsStrictAny, IsStrictUnknown, IsUnion } from './typescript utils'
+import { TupleToUnion, Union } from './typescript utils'
 
-import { TupleToUnion } from './typescript utils'
-
-type UnknownCb = (...args: never[]) => unknown
-
-// type AnyFn = (...args: any[]) => any
-// type AnyResultCb = ResultCb<any[], any>
-// type UnknownResultCb = ResultCb<unknown[], unknown>
-// type AnyErrorCb = ErrorCb<any[], any>
-
-// export type Listener<T extends UnknownCb = UnknownCb> = T
-// export type Speaker<T extends UnknownCb = UnknownCb> = T
-
-export type Listener = (...args: unknown[]) => never
-// export type Speaker<T extends unknown[] = [...args: unknown[]], R = unknown> = (...args: T) => R
 export type Input<T extends unknown | unknown[] = unknown[]> = T
-
-// FYI: typescript sucks!
-export type ResultCb = (...results: unknown[]) => never
-export type ErrorCb = (...errorArgs: unknown[]) => never
 export type ResultCbAny = (result: any) => any
-export type ErrorCbAny = (error: any) => any
-export type ListenersAny = ((...results: any[]) => any)[]
-// export type CancelFn<CancelArgs extends any[] = [...cancelArgs: unknown[]]> = Speaker<CancelArgs>
-
-/**
- * An optional returned interface that enables interactions [typically cancelling], or information gathering [typically status or progress reporting] from
- * the code initiating the async operation - i.e. not the code performing the async operation.
- * `AsyncControl` should be `void` if no control is available
- * `AsyncControl` could be a `CancelFn` if a simple cancel is required
- * or `AsyncControl` could be a more complex interface enabling interactions
- */
-
-// export type AsyncMap<
-//   InputTypes extends any[] | any = unknown[],
-//   ResultCbArgs extends any[] = [...resultArgs: unknown[]],
-//   ErrorCbArgs extends any[] = [...errorArgs: unknown[]],
-//   AsyncControl = unknown,
-//   AdditionalListeners extends (Listener<any, any> | undefined)[] = [...listeners: (Listener<any, any> | undefined)[]],
-//   Listeners extends [resultCb: Listener<any, any>, ...listeners: (Listener<any, any> | undefined)[]] = [
-//     resultCb: ResultCb<ResultCbArgs>,
-//     errorCb?: ErrorCb<ErrorCbArgs>,
-//     ...listeners: AdditionalListeners,
-//   ],
-// > = (input: Input<InputTypes>, ...listeners: Listeners) => AsyncControl
-
-// export type AsyncMap<
-//   InputTypes extends unknown[] | unknown = unknown[],
-//   ResultCallback extends ResultCb = ResultCb,
-//   ErrorCallback extends ErrorCb | undefined = ErrorCb,
-//   AsyncControl = void,
-//   AdditionalListeners extends (Listener | undefined)[] = [], // [...listeners: (Listener | undefined)[]],
-//   // ResultCallbackI1 extends ResultCb = ResultCallback extends IsStrictAny<ResultCallback> ? ResultCb : ResultCallback,
-//   // ResultCallbackI2 extends (...args: unknown[]) => unknown = ResultCallbackI1 extends (...arg0: infer R) => infer S ? (...arg1: R) => S : never,
-//   // ErrorCallbackI1 extends ErrorCb | undefined = ErrorCallback extends IsStrictAny<ErrorCallback> ? ErrorCb | undefined : ErrorCallback,
-//   // ErrorCallbackI2 extends (...args: unknown[]) => unknown = ErrorCallbackI1 extends (...arg0: infer R) => infer S ? (...arg1: R) => S : never,
-//   AdditionalListeners_ extends (Listener | undefined)[] = AdditionalListeners extends IsStrictAny<AdditionalListeners> ? (Listener | undefined)[] : AdditionalListeners,
-//   EListener extends (Listener | undefined)[] = ErrorCallback extends IsUnion<ErrorCallback>
-//     ? [errorCb: ErrorCallback]
-//     : ErrorCallback extends undefined
-//     ? []
-//     : [errorCb: ErrorCallback],
-//   Listeners extends [...listeners: (Listener | undefined)[]] = [...eCb: EListener, ...listeners: AdditionalListeners_],
-// > = {
-//   resultCbOnly: (input: Input<InputTypes>, resultCb: ResultCallback) => AsyncControl
-//   resultCbAndErrorCb: (input: Input<InputTypes>, resultCb: ResultCallback, errorCb: ErrorCallback) => AsyncControl
-//   resultCbAndOptionalErrorCb: (input: Input<InputTypes>, resultCb: ResultCallback, errorCb?: ErrorCallback) => AsyncControl
-//   resultCbAndErrorCbAndListeners: (input: Input<InputTypes>, resultCb: ResultCallback, ...listeners: Listeners) => AsyncControl
-// }
-
-// type z = AsyncMap<[val: string], (result: string) => void, (err: any) => string>
-// const x: AsyncMap<[number], ResultCb<[val: number]>>['resultCbOnly'] = ([input], resultCb) => resultCb(input)
-
-// type InferResultCb<T extends UnknownCb> = ResultCb<T>
-// type InferErrorCb<T extends UnknownCb> = ErrorCb<T>
-
-// (R extends IsStrictUnknown<R> ? ErrorCb<unknown[], unknown> : R) : never,
-
-export type AnyAsyncMap = (input: any, resultCb: (result: any) => any, ...listeners: any) => any
+export type AnyAsyncMap = (input: Input<any>, resultCb: ResultCbAny) => any
 
 export type AnyAsyncMapWithError = (
   input: any,
   resultCb: (result: any) => any,
   errorCb: (error: any) => any,
-  ...listeners: any
 ) => any
 
 export type AsyncMap<

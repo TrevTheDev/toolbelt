@@ -1,12 +1,13 @@
-/* eslint-disable mocha/no-exclusive-tests */
 import { describe, it, expect } from 'vitest'
 
 import staticAsyncMapChain from '../src/staticAsyncMapChain'
 
-const asyncMapFn = (transformFn: (result: string) => string, timeOut?: number) => (input: string, resultCb: (result: string) => void) => {
-  if (timeOut) setTimeout(() => resultCb(transformFn(input)), timeOut)
-  else resultCb(transformFn(input))
-}
+const asyncMapFn =
+  (transformFn: (result: string) => string, timeOut?: number) =>
+  (input: string, resultCb: (result: string) => void) => {
+    if (timeOut) setTimeout(() => resultCb(transformFn(input)), timeOut)
+    else resultCb(transformFn(input))
+  }
 const asyncAdd = (text: string) => asyncMapFn((input: string) => `${input}${text}`, 100)
 const add = (text: string) => asyncMapFn((input: string) => `${input}${text}`)
 // const asyncAdd1 = asyncMapFn((input: number) => input + 1, 100)
@@ -36,13 +37,27 @@ describe('staticAsyncMapChain', () => {
     }))
   it('staticAsyncMapChain handles errorCb', () =>
     new Promise((done) => {
-      const y = staticAsyncMapChain(asyncAdd('A'), add('B'), asyncAdd('C'), add('D'), asyncAdd('E'), makeErrorCb)
+      const y = staticAsyncMapChain(
+        asyncAdd('A'),
+        add('B'),
+        asyncAdd('C'),
+        add('D'),
+        asyncAdd('E'),
+        makeErrorCb,
+      )
       y.await('0', doNotCall, finalResultCb('0ABCDE'))
       y.await('1', doNotCall, finalResultCb('1ABCDE', done))
     }))
   it.only('staticAsyncMapChain handles thrown errors', () =>
     new Promise((done) => {
-      const y = staticAsyncMapChain(asyncAdd('A'), add('B'), asyncAdd('C'), add('D'), asyncAdd('E'), throwError)
+      const y = staticAsyncMapChain(
+        asyncAdd('A'),
+        add('B'),
+        asyncAdd('C'),
+        add('D'),
+        asyncAdd('E'),
+        throwError,
+      )
       y.await('0', doNotCall, (result) => finalResultCb('0ABCDE', done)(result.message))
       y.await('1', doNotCall, (result) => finalResultCb('1ABCDE', done)(result.message))
     }))

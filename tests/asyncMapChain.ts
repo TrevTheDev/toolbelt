@@ -1,4 +1,3 @@
-/* eslint-disable mocha/no-exclusive-tests */
 import { describe, it, expect, vi } from 'vitest'
 
 import asyncMapChain from '../src/asyncMapChain'
@@ -85,7 +84,9 @@ describe('asyncMapChain', () => {
     const y = asyncMapChain()
     y.await('5', resultCb)
     y.add(asyncAddA, addB, asyncAddC, addD, asyncAddE)
-    expect(() => y.await('5', (result) => console.log(result))).toThrowError('await cannot be called more than once')
+    expect(() => y.await('5', (result) => console.log(result))).toThrowError(
+      'await cannot be called more than once',
+    )
     expect(resultCb).not.toBeCalled()
   })
 
@@ -105,7 +106,9 @@ describe('asyncMapChain', () => {
           const r = partialChainResult as number
           asyncDelay(r, (result) => {
             expect(result).toEqual(1)
-            expect(() => fResultCb(result)).toThrowError(`subsequent 'AsyncMap'(s) where added. 'finalResultFn' cannot be called from this 'onEmptyChain'`)
+            expect(() => fResultCb(result)).toThrowError(
+              `subsequent 'AsyncMap'(s) where added. 'finalResultFn' cannot be called from this 'onEmptyChain'`,
+            )
             expect(resultCb).not.toBeCalled()
             done(undefined)
           })
@@ -142,7 +145,9 @@ describe('asyncMapChain', () => {
           expect(y.state).toBe('done')
           expect(() => resultCb(r)).toThrowError(`cannot call 'finalResultFn' more than once`)
           expect(y.state).toBe('error')
-          expect(() => doneFn()).toThrowError(`cannot call 'continueAwaiting' after 'finalResultFn'`)
+          expect(() => doneFn()).toThrowError(
+            `cannot call 'continueAwaiting' after 'finalResultFn'`,
+          )
           expect(() => errorCb(r)).toThrowError(`cannot call 'finalErrorFn' after 'finalResultFn'`)
           if (r === 'TABCDE') done(undefined)
         },

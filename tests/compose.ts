@@ -1,4 +1,3 @@
-/* eslint-disable mocha/no-exclusive-tests */
 import { describe, it, expect } from 'vitest'
 
 import { compose, compose2, compose3 } from '../src/compose'
