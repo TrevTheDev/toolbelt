@@ -134,7 +134,7 @@ const autoResolvers = () => {
       },
       chainy,
     )
-  const createChainSegment2 = <Chain extends ChainNode<any, any, any, any, any, any>>(
+  const createChainSegment2 = <Chain extends ChainNode<any, any, any, any, any, any, any>>(
     numberOfLinks: number,
     chainy: any,
   ) => {
@@ -162,22 +162,20 @@ describe('chain', () => {
     const chn1b = chn1a<'numberA'>((x, resolve) => {
       typesMatch<'stringD', typeof x>(true)
       typesMatch<Pins<'numberA', 'voidD'>, typeof resolve>(true)
-      const t = resolve(1)
+      const t = resolve('numberA')
       typesMatch<void, typeof t>(true)
       return 'chn1b' as 'chn1b'
     })
     const chn1c = chn1b<'booleanB', 'voidB', 'chn1d'>((x, resolve) => {
       typesMatch<'numberA', typeof x>(true)
-      typesMatch<Pins<'booleanB', 'voidD' | 'voidB', 'chn1d', void>, typeof resolve>(true)
+      typesMatch<Pins<'booleanB', 'voidB', 'chn1d', void>, typeof resolve>(true)
       const t = resolve('booleanB')
       typesMatch<'chn1d', typeof t>(true)
       return 'chn1c' as 'chn1c'
     })
     const chn1d = chn1c<'booleanC', 'voidC', 'ch1Await'>((x, resolve) => {
       typesMatch<'booleanB', typeof x>(true)
-      typesMatch<Pins<'booleanC', 'voidD' | 'voidB' | 'voidC', 'ch1Await', void>, typeof resolve>(
-        true,
-      )
+      typesMatch<Pins<'booleanC', 'voidC', 'ch1Await', void>, typeof resolve>(true)
       const t = resolve('booleanC')
       typesMatch<'ch1Await', typeof t>(true)
       return 'chn1d' as 'chn1d'
@@ -192,10 +190,20 @@ describe('chain', () => {
         return 'ch1Await'
       },
       (error) => {
-        typesMatch<'voidD' | 'voidB' | 'voidC', typeof error>(true)
+        typesMatch<never, typeof error>(true)
       },
     )
     typesMatch<AwaitedChainNode<void | 'chn1d' | 'ch1Await'>, typeof ch1Await>(true)
+    const chn1f = chn1e<'booleanE', 'voidE', 'chn1f'>((x, resolve) => {
+      typesMatch<'booleanC', typeof x>(true)
+      typesMatch<Pins<'booleanE', 'voidE', 'chn1f', void>, typeof resolve>(true)
+      const t = resolve('booleanE')
+      typesMatch<'chn1f', typeof t>(true)
+      return 'ch1Await' as 'ch1Await'
+    })
+    const chn1g = chn1f.onError((x) => {
+      typesMatch<'voidE', typeof x>(true)
+    })
   })
   it('basic', () =>
     new Promise((done) => {
@@ -225,15 +233,11 @@ describe('chain', () => {
 
       const a = chainy<number>((x, resolve) => {
         expect(x).toEqual('start')
-        checkType<string>(x)
-        checkType<Pins<number, unknown>>(resolve)
         resolve(1)
       })
 
       const b = a<boolean>((x, resolve) => {
         expect(x).toEqual(1)
-        checkType<number>(x)
-        checkType<Pins<boolean, unknown>>(resolve)
         resolve(true)
       })
 
@@ -247,7 +251,6 @@ describe('chain', () => {
       b.await(
         'start',
         (result) => {
-          checkType<boolean>(result)
           expect(result).toEqual(true)
           done(undefined)
         },
@@ -260,15 +263,11 @@ describe('chain', () => {
 
       const a = chainy<number>((x, resolve) => {
         expect(x).toEqual('start')
-        checkType<string>(x)
-        checkType<Pins<number, unknown>>(resolve)
         resolve.result(1)
       })
 
       const b = a<boolean>((x, resolve) => {
         expect(x).toEqual(1)
-        checkType<number>(x)
-        checkType<Pins<boolean, unknown>>(resolve)
         resolve.result(true)
       })
 
@@ -282,7 +281,6 @@ describe('chain', () => {
       b.await(
         'start',
         (result) => {
-          checkType<boolean>(result)
           expect(result).toEqual(true)
           done(undefined)
         },
@@ -295,13 +293,11 @@ describe('chain', () => {
 
       const a = chainy<number>((x, resolve) => {
         expect(x).toEqual('start')
-        typesMatch<Pins<number, string>, typeof resolve>(true)
         resolve.result(1)
       })
 
       const b = a<boolean, boolean>((x, resolve) => {
         expect(x).toEqual(1)
-        typesMatch<Pins<boolean, string | boolean>, typeof resolve>(true)
         resolve.error(true)
       })
       typesMatch<
@@ -314,7 +310,6 @@ describe('chain', () => {
       >(true)
 
       b.await('start', doNotCall, (error) => {
-        typesMatch<string | boolean, typeof error>(true)
         expect(error).toEqual(true)
         done(undefined)
       })
@@ -325,30 +320,13 @@ describe('chain', () => {
 
       const { errorResolver, matches, createChainSegment } = autoResolvers()
 
-      // debugger
-
       const b = createChainSegment(['start', 'a', 'b'], chainy)
 
-      const c = b(
-        errorResolver('b', 'c'),
-        /* (input, resolver) => {
-          debugger
-          console.log(input)
-          resolver.error(input)
-        }, */
-      )
+      const c = b(errorResolver('b', 'c'))
 
-      const c1 = c.onError(
-        matches('c', done) /* (err) => {
-          debugger
-          console.log(err)
-          done(undefined)
-        }, */,
-      )
+      const c1 = c.onError(matches('c', done))
 
       const d = c1(doNotCall)
-
-      // debugger
 
       d.await('start', doNotCall, doNotCall)
     }))
@@ -418,8 +396,8 @@ describe('chain', () => {
   it('duplicate onError throws', () =>
     new Promise((done) => {
       const { resultResolver, matches } = autoResolvers()
-      const chainy = chain()
-      const a = chainy<string>(resultResolver('a', 'b'))
+      const chainy = chain<string>()
+      const a = chainy(resultResolver('a', 'b'))
       const b1 = a(resultResolver('b', 'b1'))
       const b2 = a(resultResolver('b', 'b2'))
 
@@ -431,15 +409,13 @@ describe('chain', () => {
     }))
   it('sequential onError', () =>
     new Promise((done) => {
-      const chainy = chain<string, never>()
-      const a = chainy<string, string>((x, resolve) => resolve.error(`a:${x}`))
+      const chainy = chain<string, string>()
+      const a = chainy((x, resolve) => resolve.error(`a:${x}`))
       const b = a.onError((result, resolver) => {
         expect(result).toEqual('a:1')
         resolver('b')
       })
-      const c = b<string>((x, resolve) => resolve(`c:${x}`))((x, resolve) =>
-        resolve.error(`c2:${x}`),
-      )
+      const c = b((x, resolve) => resolve(`c:${x}`))((x, resolve) => resolve.error(`c2:${x}`))
       const d = c.onError((result, resolver) => {
         expect(result).toEqual('c2:c:b')
         resolver('b')
@@ -456,7 +432,7 @@ describe('chain', () => {
     }))
   it('return types', () =>
     new Promise((done) => {
-      const chainy = chain<string, never, never, 'a'>()
+      const chainy = chain<string, never, 'a'>()
       const a = chainy<string, string, 'b'>((x, resolve) => {
         debugger
         const t = resolve(`a:${x}`) // 'b'
