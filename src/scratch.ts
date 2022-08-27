@@ -79,7 +79,7 @@ type ResultErrorAsyncMap<
 export type ChainNode<
   StartInput,
   Input,
-  Error,
+  AccumulateError,
   Output,
   AsyncFnController,
   ErrorResolverController,
@@ -87,39 +87,33 @@ export type ChainNode<
 > = {
   <
     ChildOut = Input,
-    ChildError = Error,
+    ChildError = AccumulateError,
     ChildAsyncFnController = AsyncFnController,
     ChildErrorResolverController = ErrorResolverController,
   >(
     asyncFn: ResultErrorAsyncMap<
       Output,
       ChildOut,
-      Error | ChildError,
+      ChildError,
       AsyncFnController,
-      ChildAsyncFnController,
-      ChildErrorResolverController
-    >,
-    errorFn?: ErrorCb<
-      Error | ChildError,
-      ChildOut,
       ChildAsyncFnController,
       ChildErrorResolverController
     >,
   ): ChainNode<
     StartInput,
     Output,
-    Error | ChildError,
+    AccumulateError | ChildError,
     ChildOut,
     ChildAsyncFnController,
     ChildErrorResolverController,
     AccumulatedAsyncFnController | ChildAsyncFnController
   >
   onError(
-    callback: ErrorCb<Error, Output, AsyncFnController, ErrorResolverController>,
+    callback: ErrorCb<AccumulateError, Output, AsyncFnController, ErrorResolverController>,
   ): ChainNode<
     StartInput,
     Input,
-    Error,
+    never,
     Output,
     AsyncFnController,
     ErrorResolverController,
@@ -128,11 +122,11 @@ export type ChainNode<
   await(
     input: StartInput,
     resultCb: ResultCb<Output, AsyncFnController>,
-    errorCb: ErrorCb<Error, Output, AsyncFnController, ErrorResolverController>,
+    errorCb: ErrorCb<AccumulateError, Output, AsyncFnController, ErrorResolverController>,
   ): AwaitedChainNode<AccumulatedAsyncFnController>
   s<
     ChildOut = Input,
-    ChildError = Error,
+    ChildError = AccumulateError,
     ChildAsyncFnController = AsyncFnController,
     ChildErrorResolverController = ErrorResolverController,
   >(
@@ -140,7 +134,7 @@ export type ChainNode<
   ): ChainNode<
     StartInput,
     Output,
-    Error | ChildError,
+    AccumulateError | ChildError,
     ChildOut,
     ChildAsyncFnController,
     ChildErrorResolverController,
@@ -152,7 +146,7 @@ type ChainOptions = {
   asyncByDefault: boolean
 }
 
-const FunctionAssign = <T, S>(fn: T, obj: S) => Object.assign(fn, obj) as T & S
+const FunctionAssign = <T extends object, S>(fn: T, obj: S) => Object.assign(fn, obj) as T & S
 
 const startChain = <
   DefaultInputOutput,
@@ -191,7 +185,6 @@ const startChain = <
         return awaitFn(arg, resultCb, errorCb, {})
       },
       onError(errorCb: ErrorCb<Error, Output, AsyncFnController, ErrorResolverController>) {
-        // debugger
         return errorNode(awaitFn, errorCb)
       },
       s<
