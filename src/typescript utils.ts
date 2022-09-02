@@ -30,10 +30,19 @@ export type JustSignatures<T> = T extends {
  * Gotcha: doesn't merge call signatures or constructors
  * @example
  * type U = Union<{a: number}, {b: string}>     // {a: number, b: string}
- * type U = Union<{ a: number }, { a: string }> // {a: string }
+ * type U = Union<{ a: number }, { a: string }> // {a: string}
  */
 export type Union<T1, T2> = {
   [k in keyof T2 | keyof T1]: k extends keyof T2 ? T2[k] : k extends keyof T1 ? T1[k] : never
+}
+/**
+ * Overwrites any properties in T1, that are also in T2
+ * @example
+ * type U = LMerge<{ a: number }, { b: string }> // {a: number}
+ * type U = LMerge<{ a: number; c: boolean }, { a: string; b: number }> // {a: string, c:boolean}
+ */
+export type LMerge<T1, T2> = {
+  [k in keyof T1]: k extends keyof T2 ? T2[k] : T1[k]
 }
 
 /**
@@ -284,17 +293,19 @@ export type UnionToTuple<T, L = LastOf<T>, N = [T] extends [never] ? true : fals
   : Push<UnionToTuple<Exclude<T, L>>, L>
 
 /**
- * Whether two types are equal
+ * Whether two function? types are equal -don't understand this
  * @example
  * type E = StrictEqual<string, string> // true
  * type E = StrictEqual<string, number> // false
  * type E = StrictEqual<string, any>    // false
+ * type E = StrictEqual<string, any>    // false
+ * type E = StrictEqual<{ a: unknown} & { a:string }, { a: string }> // false ????
  */
-export type StrictEqual<A1, A2> = (<A>() => A extends A2 ? true : false) extends <
-  A,
->() => A extends A1 ? true : false
-  ? true
-  : false
+// export type StrictEqual<A1, A2> = (<A>() => A extends A2 ? true : false) extends <
+//   A,
+// >() => A extends A1 ? true : false
+//   ? true
+//   : false
 
 /**
  * Assert than can both narrow and broaden - it requires reassignment to work.
