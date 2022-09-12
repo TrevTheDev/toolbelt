@@ -1,16 +1,21 @@
 {
+  "ts-node": {
+    // these options are overrides used only by ts-node
+    // same as our --compilerOptions flag and our TS_NODE_COMPILER_OPTIONS environment variable
+    "compilerOptions": {
+      "module": "commonjs"
+    },
+  },
   "compilerOptions": {
     /* Visit https://aka.ms/tsconfig.json to read more about this file */
 
     /* Basic Options */
     // "incremental": true,                         /* Enable incremental compilation */
-    "target": "ES2021",
+    "target": "ESNext",
     /* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */
-    "module": "CommonJS",
+    "module": "commonjs",
     /* Specify module code generation: 'none', 'commonjs', 'amd', 'system', 'umd', 'es2015', 'es2020', or 'ESNext'. */
-    "lib": [
-      "es2021"
-    ],
+    "lib": ["ESNext"],
     /* Specify library files to be included in the compilation. */
     // "allowJs": true,                             /* Allow javascript files to be compiled. */
     // "checkJs": true,                             /* Report errors in .js files. */
@@ -34,55 +39,38 @@
     // "downlevelIteration": true,                  /* Provide full support for iterables in 'for-of', spread, and destructuring when targeting 'ES5' or 'ES3'. */
     // "isolatedModules": true,                     /* Transpile each file as a separate module (similar to 'ts.transpileModule'). */
 
-    /* Strict Type-Checking Options */
-    "strict": true,
-    /* Enable all strict type-checking options. */
-    "noImplicitAny": false,
-    /* Raise error on expressions and declarations with an implied 'any' type. */
-    "strictNullChecks": true,
-    /* Enable strict null checks. */
-    "strictFunctionTypes": true,
-    /* Enable strict checking of function types. */
-    "strictBindCallApply": true,
-    /* Enable strict 'bind', 'call', and 'apply' methods on functions. */
-    "strictPropertyInitialization": true,
-    /* Enable strict checking of property initialization in classes. */
-    "noImplicitThis": true,
-    /* Raise error on 'this' expressions with an implied 'any' type. */
-    "alwaysStrict": true,
-    /* Parse in strict mode and emit "use strict" for each source file. */
+    /* Interop Constraints */
+    // "isolatedModules": true,                          /* Ensure that each file can be safely transpiled without relying on other imports. */
+    // "allowSyntheticDefaultImports": true,             /* Allow 'import x from y' when a module doesn't have a default export. */
+    "esModuleInterop": true,                             /* Emit additional JavaScript to ease support for importing CommonJS modules. This enables 'allowSyntheticDefaultImports' for type compatibility. */
+    // "preserveSymlinks": true,                         /* Disable resolving symlinks to their realpath. This correlates to the same flag in node. */
+    "forceConsistentCasingInFileNames": true,            /* Ensure that casing is correct in imports. */
 
-    /* Additional Checks */
-    "noUnusedLocals": false, //TODO: change to true
-    /* Report errors on unused locals. */
-    "noUnusedParameters": true,
-    /* Report errors on unused parameters. */
-    "noImplicitReturns": true,
-    /* Report error when not all code paths in function return a value. */
-    "noFallthroughCasesInSwitch": true,
-    /* Report errors for fallthrough cases in switch statement. */
-    "noUncheckedIndexedAccess": true,
-    /* Include 'undefined' in index signature results */
-    "noImplicitOverride": true,
-    /* Ensure overriding members in derived classes are marked with an 'override' modifier. */
-    "noPropertyAccessFromIndexSignature": true,
-    /* Require undeclared properties from index signatures to use element accesses. */
 
-    /* Module Resolution Options */
-    "moduleResolution": "node",
-    /* Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6). */
-    // "baseUrl": "./",                             /* Base directory to resolve non-absolute module names. */
-    // "paths": {},                                 /* A series of entries which re-map imports to lookup locations relative to the 'baseUrl'. */
-    // "rootDirs": [],                              /* List of root folders whose combined content represents the structure of the project at runtime. */
-    // "typeRoots": [],                             /* List of folders to include type definitions from. */
-    // "types": [],                                 /* Type declaration files to be included in compilation. */
-    // "allowSyntheticDefaultImports": true,        /* Allow default imports from modules with no default export. This does not affect code emit, just typechecking. */
-    "esModuleInterop": true,
-    /* Enables emit interoperability between CommonJS and ES Modules via creation of namespace objects for all imports. Implies 'allowSyntheticDefaultImports'. */
-    // "preserveSymlinks": true,                    /* Do not resolve the real path of symlinks. */
-    // "allowUmdGlobalAccess": true,                /* Allow accessing UMD globals from modules. */
 
-    /* Source Map Options */
+    /* Type Checking */
+    "strict": true,                                   /* Enable all strict type-checking options. */
+    "noImplicitAny": false,                            /* Enable error reporting for expressions and declarations with an implied 'any' type. */
+    "strictNullChecks": true,                         /* When type checking, take into account 'null' and 'undefined'. */
+    "strictFunctionTypes": true,                      /* When assigning functions, check to ensure parameters and the return values are subtype-compatible. */
+    "strictBindCallApply": true,                      /* Check that the arguments for 'bind', 'call', and 'apply' methods match the original function. */
+    "strictPropertyInitialization": true,             /* Check for class properties that are declared but not set in the constructor. */
+    "noImplicitThis": true,                           /* Enable error reporting when 'this' is given the type 'any'. */
+    "useUnknownInCatchVariables": true,               /* Default catch clause variables as 'unknown' instead of 'any'. */
+    "alwaysStrict": true,                             /* Ensure 'use strict' is always emitted. */
+    "noUnusedLocals": false,                           /* Enable error reporting when local variables aren't read. */
+    "noUnusedParameters": false,                       /* Raise an error when a function parameter isn't read. */
+    "exactOptionalPropertyTypes": true,               /* Interpret optional property types as written, rather than adding 'undefined'. */
+    "noImplicitReturns": true,                        /* Enable error reporting for codepaths that do not explicitly return in a function. */
+    "noFallthroughCasesInSwitch": true,               /* Enable error reporting for fallthrough cases in switch statements. */
+    "noUncheckedIndexedAccess": true,                 /* Add 'undefined' to a type when accessed using an index. */
+    "noImplicitOverride": true,                       /* Ensure overriding members in derived classes are marked with an override modifier. */
+    "noPropertyAccessFromIndexSignature": true,       /* Enforces using indexed accessors for keys declared using an indexed type. */
+    "allowUnusedLabels": true,                        /* Disable error reporting for unused labels. */
+    "allowUnreachableCode": true,                     /* Disable error reporting for unreachable code. */
+  
+
+      /* Source Map Options */
     // "sourceRoot": "",                            /* Specify the location where debugger should locate TypeScript files instead of source locations. */
     // "mapRoot": "",                               /* Specify the location where debugger should locate map files instead of generated locations. */
     // "inlineSourceMap": true,                     /* Emit a single file with source maps instead of having a separate file. */
@@ -92,11 +80,10 @@
     // "experimentalDecorators": true,              /* Enables experimental support for ES7 decorators. */
     // "emitDecoratorMetadata": true,               /* Enables experimental support for emitting type metadata for decorators. */
 
-    /* Advanced Options */
-    "skipLibCheck": true,
-    /* Skip type checking of declaration files. */
-    "forceConsistentCasingInFileNames": true,
-    /* Disallow inconsistently-cased references to the same file. */
+    /* Completeness */
+    // "skipDefaultLibCheck": true,                      /* Skip type checking .d.ts files that are included with TypeScript. */
+    "skipLibCheck": true,                             /* Skip type checking all .d.ts files. */
+    
     "noErrorTruncation": true,
   },
   "include": [ "src", "tests", "tests apluspromises" ]

@@ -34,7 +34,9 @@ export type JustSignatures<T> = T extends {
  */
 export type Union<T1, T2> = {
   [k in keyof T2 | keyof T1]: k extends keyof T2 ? T2[k] : k extends keyof T1 ? T1[k] : never
-}
+} extends infer O
+  ? { [K in keyof O]: O[K] }
+  : never
 /**
  * Overwrites any properties in T1, that are also in T2
  * @example
@@ -43,7 +45,25 @@ export type Union<T1, T2> = {
  */
 export type LMerge<T1, T2> = {
   [k in keyof T1]: k extends keyof T2 ? T2[k] : T1[k]
-}
+} extends infer O
+  ? { [K in keyof O]: O[K] }
+  : never
+
+/**
+ * Renames a property in a type object.
+ * @example
+ * type U = RenameProperty<{ a: number; c?: boolean; d?: string }, 'c', 'b'> // { a: number,  b?: boolean, d?: string }
+ */
+export type RenameProperty<T, K extends keyof T, N extends string> = {
+  [P in keyof T as P extends K ? N : P]: T[P]
+} extends infer O
+  ? { [Key in keyof O]: O[Key] }
+  : never
+/* Omit<T, K> & {
+  [P in N]: T[K]
+} extends infer O
+  ? { [Key in keyof O]: O[Key] }
+  : never */
 
 /**
  * Omits call signature from a type
@@ -331,34 +351,34 @@ export function narrowingAssert<T>(toBeAsserted: any): asserts toBeAsserted is T
   return undefined
 }
 
-type a = IsStrictAnyArray<[]>
-type b = IsStrictUnknownArray<unknown[]>
-type c = IsStrictUnknownArray<any>
-type c2 = IsStrictUnknownArray<any[]>
-type d = IsStrictUnknownArray<never>
-type e = IsStrictUnknownArray<void>
-type f = IsStrictUnknownArray<void[]>
-type g = IsStrictUnknownArray<(() => unknown)[]>
-type h = IsStrictUnknownArray<[unknown]>
+// type a = IsStrictAnyArray<[]>
+// type b = IsStrictUnknownArray<unknown[]>
+// type c = IsStrictUnknownArray<any>
+// type c2 = IsStrictUnknownArray<any[]>
+// type d = IsStrictUnknownArray<never>
+// type e = IsStrictUnknownArray<void>
+// type f = IsStrictUnknownArray<void[]>
+// type g = IsStrictUnknownArray<(() => unknown)[]>
+// type h = IsStrictUnknownArray<[unknown]>
 
-type IsAnyArray1 = unknown extends any[] ? true : false // false
-type IsAnyArray2 = any extends any[] ? true : false // boolean
+// type IsAnyArray1 = unknown extends any[] ? true : false // false
+// type IsAnyArray2 = any extends any[] ? true : false // boolean
 
-type za = IsStrictAnyArray<unknown>
-type zb = IsStrictAnyArray<unknown[]>
-type zc = IsStrictAnyArray<any>
-type zc2 = IsStrictAnyArray<any[]>
-type zc21 = IsStrictAnyArray<[any]>
-type zd = IsStrictAnyArray<never>
-type ze = IsStrictAnyArray<void>
-type zf = IsStrictAnyArray<void[]>
-type zg = IsStrictAnyArray<(() => unknown)[]>
-type zh = IsStrictAnyArray<[unknown]>
+// type za = IsStrictAnyArray<unknown>
+// type zb = IsStrictAnyArray<unknown[]>
+// type zc = IsStrictAnyArray<any>
+// type zc2 = IsStrictAnyArray<any[]>
+// type zc21 = IsStrictAnyArray<[any]>
+// type zd = IsStrictAnyArray<never>
+// type ze = IsStrictAnyArray<void>
+// type zf = IsStrictAnyArray<void[]>
+// type zg = IsStrictAnyArray<(() => unknown)[]>
+// type zh = IsStrictAnyArray<[unknown]>
 
-type zzzz = unknown extends string ? true : false // true
-type zzzz1 = unknown extends unknown ? true : false // true
-type zzzz2 = any extends unknown ? true : false // true
-type zzzz3 = any extends string ? true : false // true
+// type zzzz = unknown extends string ? true : false // true
+// type zzzz1 = unknown extends unknown ? true : false // true
+// type zzzz2 = any extends unknown ? true : false // true
+// type zzzz3 = any extends string ? true : false // true
 
 export type IsFinite<Tuple extends any[], Finite, Infinite> = {
   empty: Finite
@@ -379,8 +399,6 @@ export type Prepend<Tuple extends any[], NewHead extends any[]> = [
   ...tail: Tuple,
 ]
 
-type CODENAME = Prepend<[a: number, c: string], [b: string]>
-
 export type Reverse<Tuple extends any[], Prefix extends any[] = []> = {
   empty: Prefix
   nonEmpty: Tuple extends [infer First, ...infer Next]
@@ -394,7 +412,7 @@ export type Reverse<Tuple extends any[], Prefix extends any[] = []> = {
 
 export type Concat<Left extends any[], Right extends any[]> = {
   emptyLeft: Right
-  singleLeft: Left extends [infer SoleElement] ? Prepend<Right, Left> : never
+  singleLeft: Left extends [unknown] ? Prepend<Right, Left> : never
   multiLeft: Reverse<Left> extends [infer LeftLast, ...infer ReversedLeftRest]
     ? Concat<Reverse<ReversedLeftRest>, Prepend<Right, [LeftLast]>>
     : never
@@ -410,4 +428,4 @@ export type Concat<Left extends any[], Right extends any[]> = {
 
 export type ConcatTuple<Tuple1 extends unknown[], Tuple2 extends unknown[]> = [...Tuple1, ...Tuple2]
 
-type CC = ConcatTuple<[a: string, c: number], [c: `STING`]>
+// type CC = ConcatTuple<[a: string, c: number], [c: `STING`]>
