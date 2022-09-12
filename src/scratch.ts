@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/ban-types */
 /* eslint-disable no-use-before-define */
 // const coupler = () => {
 //   let resultCb: (...args) => any
@@ -26,536 +28,428 @@
 //   return obj
 // }
 
-export type ResultResolver<Result, ResultResolverController> = (
-  result: Result,
-) => ResultResolverController
-export type ErrorResolver<Error, ErrorResolverController> = (
-  error: Error,
-) => ErrorResolverController
-export type ResultCb<T, ResultCbController> = (result: T) => ResultCbController
-export type ErrorCb<Error, Output, ResultResolverController = void, ErrorCbController = void> = (
+import { Union, LMerge, RenameProperty } from './typescript utils.js'
+
+type ResultResolver<Result, ResultResolverController> = (result: Result) => ResultResolverController
+type ErrorResolver<Error, ErrorResolverController> = (error: Error) => ErrorResolverController
+type ResultCb<T, ResultCbController> = (result: T) => ResultCbController
+export type ErrorCb<Error, Output, ResultResolverController, ErrorCbController> = (
   error: Error,
   result: ResultResolver<Output, ResultResolverController>,
 ) => ErrorCbController
 
-export type Pins<
-  Output,
-  Error = unknown,
-  ResultResolverController = void,
-  ErrorResolverController = void,
-> = {
-  (result: Output): ResultResolverController
-  result: ResultResolver<Output, ResultResolverController>
-  error: ErrorResolver<Error, ErrorResolverController>
-}
-
-export type AwaitedChainNode<AccumulatedAsyncFnController> = {
+export type AwaitedChainNodeController<AccumulatedAsyncFnController> = {
+  breakChain: boolean
   controller: AccumulatedAsyncFnController
 }
 
-export type StartChainNode<Input, AsyncFnController, ErrorResolverController> = {
-  addChild: <ChildAsyncFnController, ChildErrorResolverController>() => StartChainNode<
-    Input,
-    AsyncFnController | ChildAsyncFnController,
-    ErrorResolverController | ChildErrorResolverController
-  >
-  startInput: Input
-  asyncFnController: AsyncFnController
-  errorResolverController: ErrorResolverController
+type ChainNodeGenerics = {
+  Error: unknown
+  Output: unknown
+  ResultResolverController: unknown
+  ErrorResolverController: unknown
 }
 
-type ResultErrorAsyncMap<
-  Input,
-  Output,
-  Error,
-  Controller,
-  ChildController,
-  ChildErrorResolverController,
+type ChainNodePossibleGenerics = Partial<ChainNodeGenerics>
+
+type ChainNodeAccumulatedTypes = {
+  AccumulatedOutputs: unknown
+  AccumulatedErrors: unknown
+  AccumulatedResultResolverControllers: unknown
+  AccumulatedErrorResolverControllers: unknown
+}
+
+type ChainNodeGenericsWithInputOutput = Union<
+  Omit<ChainNodeGenerics, 'Output'>,
+  { InputOutput: unknown }
+>
+type NeverChainNodeGenerics = { [k in keyof ChainNodeGenericsWithInputOutput]: never }
+
+export type PinsA<Error, Output, ResultResolverController, AccumulatedErrorResolverControllers> = {
+  (result: Output): ResultResolverController
+  result: ResultResolver<Output, ResultResolverController>
+  error: ErrorResolver<Error, AccumulatedErrorResolverControllers>
+}
+
+export type Pins<
+  Node extends {
+    Error: unknown
+    Output: unknown
+    ResultResolverController: unknown
+  },
+  AccumulatedTypes extends {
+    AccumulatedErrorResolverControllers: unknown
+  },
+> = PinsA<
+  Node['Error'],
+  Node['Output'],
+  Node['ResultResolverController'],
+  AccumulatedTypes['AccumulatedErrorResolverControllers']
+>
+
+type ChainNodeAsyncFn<
+  ParentNode extends {
+    Output: unknown
+    ResultResolverController: unknown
+    ErrorResolverController: unknown
+  },
+  Node extends ChainNodeGenerics,
+  AccumulatedTypes extends {
+    AccumulatedErrorResolverControllers: unknown
+  },
 > = (
-  input: Input,
-  resolver: Pins<Output, Error, ChildController, ChildErrorResolverController>,
-) => Controller
+  input: ParentNode['Output'],
+  resolver: Pins<Node, AccumulatedTypes>,
+) => ParentNode['ResultResolverController']
+
+type ChainNodeResultCb<
+  Node extends {
+    Output: unknown
+    ResultResolverController: unknown
+  },
+> = ResultCb<Node['Output'], Node['ResultResolverController']>
+
+type ChainNodeErrorCb<Node extends ChainNodeGenerics> = ErrorCb<
+  Node['Error'],
+  Node['Output'],
+  Node['ResultResolverController'],
+  Node['ErrorResolverController']
+>
+
+type AccumulatedErrorCb<Node extends ChainNodeAccumulatedTypes> = ErrorCb<
+  Node['AccumulatedErrors'],
+  Node['AccumulatedOutputs'],
+  Node['AccumulatedResultResolverControllers'],
+  Node['AccumulatedErrorResolverControllers']
+>
+
+type ChainNodeController<Controller> = AwaitedChainNodeController<Controller>
+
+type ChainNodeAwaitFn<StartInput, Node extends ChainNodeGenerics> = (
+  input: StartInput,
+  resultCb: ChainNodeResultCb<Node>,
+  errorCb: ChainNodeErrorCb<Node>,
+  controller: ChainNodeController<Node['ResultResolverController']>,
+) => AwaitedChainNodeController<Node['ResultResolverController']>
+
+type AccumulateChainNodeAwaitFn<
+  StartInput,
+  Node extends ChainNodeGenerics,
+  AccumulatedTypes extends ChainNodeAccumulatedTypes,
+> = (
+  input: StartInput,
+  resultCb: ChainNodeResultCb<Node>,
+  errorCb: AccumulatedErrorCb<AccumulatedTypes>,
+  controller: ChainNodeController<AccumulatedTypes['AccumulatedResultResolverControllers']>,
+) => AwaitedChainNodeController<AccumulatedTypes['AccumulatedResultResolverControllers']>
+
+// type DefaultFnCall<
+//   StartInput,
+//   Node extends ChainNodeGenerics,
+//   Defaults extends ChainNodeGenerics,
+//   AccumulatedTypes extends ChainNodeAccumulatedTypes,
+//   S extends ChainNodePossibleGenerics = {},
+//   NewDefaults extends ChainNodePossibleGenerics = {},
+//   UpdatedDefaults extends ChainNodeGenerics = LMerge<
+//     Defaults,
+//     NewDefaults
+//   > extends ChainNodeGenerics
+//     ? LMerge<Defaults, NewDefaults>
+//     : never,
+//   Child extends ChainNodeGenerics = LMerge<UpdatedDefaults, S> extends ChainNodeGenerics
+//     ? LMerge<UpdatedDefaults, S>
+//     : never,
+//   ChildAccumulatedTypes extends ChainNodeAccumulatedTypes = {
+//     AccumulatedErrors: AccumulatedTypes['AccumulatedErrors'] | Child['Error']
+//     AccumulatedOutputs: AccumulatedTypes['AccumulatedOutputs'] | Child['Output']
+//     AccumulatedResultResolverControllers:
+//       | AccumulatedTypes['AccumulatedResultResolverControllers']
+//       | Child['ResultResolverController']
+//     AccumulatedErrorResolverControllers:
+//       | AccumulatedTypes['AccumulatedErrorResolverControllers']
+//       | Child['ErrorResolverController']
+//   },
+// > = (
+//   asyncFn: ChainNodeAsyncFn<Node, Child, ChildAccumulatedTypes>,
+// ) => ChainNode<StartInput, Node, Child, ChildAccumulatedTypes, UpdatedDefaults>
 
 export type ChainNode<
   StartInput,
-  Input,
-  AccumulateError,
-  Output,
-  AsyncFnController,
-  ErrorResolverController,
-  AccumulatedAsyncFnController,
+  ParentNode extends ChainNodeGenerics,
+  Node extends ChainNodeGenerics,
+  AccumulatedTypes extends ChainNodeAccumulatedTypes,
+  Defaults extends ChainNodeGenerics = ChainNodeGenerics,
 > = {
   <
-    ChildOut = Input,
-    ChildError = AccumulateError,
-    ChildAsyncFnController = AsyncFnController,
-    ChildErrorResolverController = ErrorResolverController,
+    NodeTypes extends ChainNodePossibleGenerics = {},
+    UpdateDefaults extends ChainNodePossibleGenerics = {},
+    UpdatedDefaults extends ChainNodeGenerics = LMerge<
+      Defaults,
+      UpdateDefaults
+    > extends ChainNodeGenerics
+      ? LMerge<Defaults, UpdateDefaults>
+      : never,
+    Child extends ChainNodeGenerics = LMerge<UpdatedDefaults, NodeTypes> extends ChainNodeGenerics
+      ? LMerge<UpdatedDefaults, NodeTypes>
+      : never,
+    ChildAccumulatedTypes extends ChainNodeAccumulatedTypes = {
+      AccumulatedErrors: AccumulatedTypes['AccumulatedErrors'] | Child['Error']
+      AccumulatedOutputs: AccumulatedTypes['AccumulatedOutputs'] | Child['Output']
+      AccumulatedResultResolverControllers:
+        | AccumulatedTypes['AccumulatedResultResolverControllers']
+        | Child['ResultResolverController']
+      AccumulatedErrorResolverControllers:
+        | AccumulatedTypes['AccumulatedErrorResolverControllers']
+        | Child['ErrorResolverController']
+    },
   >(
-    asyncFn: ResultErrorAsyncMap<
-      Output,
-      ChildOut,
-      ChildError,
-      AsyncFnController,
-      ChildAsyncFnController,
-      ChildErrorResolverController
-    >,
-  ): ChainNode<
-    StartInput,
-    Output,
-    AccumulateError | ChildError,
-    ChildOut,
-    ChildAsyncFnController,
-    ChildErrorResolverController,
-    AccumulatedAsyncFnController | ChildAsyncFnController
-  >
+    asyncFn: ChainNodeAsyncFn<Node, Child, ChildAccumulatedTypes>,
+  ): ChainNode<StartInput, Node, Child, ChildAccumulatedTypes, UpdatedDefaults>
   onError(
-    callback: ErrorCb<AccumulateError, Output, AsyncFnController, ErrorResolverController>,
-  ): ChainNode<
-    StartInput,
-    Input,
-    never,
-    Output,
-    AsyncFnController,
-    ErrorResolverController,
-    AccumulatedAsyncFnController
-  >
+    callback: AccumulatedErrorCb<AccumulatedTypes>,
+  ): ChainNode<StartInput, ParentNode, Node, AccumulatedTypes, Defaults>
   await(
     input: StartInput,
-    resultCb: ResultCb<Output, AsyncFnController>,
-    errorCb: ErrorCb<AccumulateError, Output, AsyncFnController, ErrorResolverController>,
-  ): AwaitedChainNode<AccumulatedAsyncFnController>
+    resultCb: ChainNodeResultCb<Node>,
+    errorCb: AccumulatedErrorCb<AccumulatedTypes>,
+  ): AwaitedChainNodeController<AccumulatedTypes['AccumulatedResultResolverControllers']>
   s<
-    ChildOut = Input,
-    ChildError = AccumulateError,
-    ChildAsyncFnController = AsyncFnController,
-    ChildErrorResolverController = ErrorResolverController,
+    NodeTypes extends ChainNodePossibleGenerics = {},
+    UpdateDefaults extends ChainNodePossibleGenerics = {},
+    UpdatedDefaults extends ChainNodeGenerics = LMerge<
+      Defaults,
+      UpdateDefaults
+    > extends ChainNodeGenerics
+      ? LMerge<Defaults, UpdateDefaults>
+      : never,
+    Child extends ChainNodeGenerics = LMerge<UpdatedDefaults, NodeTypes> extends ChainNodeGenerics
+      ? LMerge<UpdatedDefaults, NodeTypes>
+      : never,
+    ChildAccumulatedTypes extends ChainNodeAccumulatedTypes = {
+      AccumulatedErrors: AccumulatedTypes['AccumulatedErrors'] | Child['Error']
+      AccumulatedOutputs: AccumulatedTypes['AccumulatedOutputs'] | Child['Output']
+      AccumulatedResultResolverControllers:
+        | AccumulatedTypes['AccumulatedResultResolverControllers']
+        | Child['ResultResolverController']
+      AccumulatedErrorResolverControllers:
+        | AccumulatedTypes['AccumulatedErrorResolverControllers']
+        | Child['ErrorResolverController']
+    },
   >(
-    syncFunction: (input: Output) => ChildOut,
-  ): ChainNode<
-    StartInput,
-    Output,
-    AccumulateError | ChildError,
-    ChildOut,
-    ChildAsyncFnController,
-    ChildErrorResolverController,
-    AccumulatedAsyncFnController | ChildAsyncFnController
-  >
+    syncFunction: (input: Node['Output']) => Child['Output'],
+  ): ChainNode<StartInput, Node, Child, ChildAccumulatedTypes, UpdatedDefaults>
 }
 
-type ChainOptions = {
-  asyncByDefault: boolean
-}
+/* ***************************************************************************************************************************************************************
+ *****************************************************************************************************************************************************************
+ *****************************************************************************************************************************************************************
+ *****************************************************************************************************************************************************************
+ *****************************************************************************************************************************************************************
+ *****************************************************************************************************************************************************************
+ *****************************************************************************************************************************************************************
+ *****************************************************************************************************************************************************************
+ *****************************************************************************************************************************************************************
+ */
 
-const FunctionAssign = <T extends object, S>(fn: T, obj: S) => Object.assign(fn, obj) as T & S
+const functionAssign = <T extends object, S>(fn: T, obj: S) => Object.assign(fn, obj) as T & S
 
-const startChain = <
-  DefaultInputOutput,
-  DefaultError,
-  DefaultAsyncFnController,
-  DefaultErrorResolverController,
->() => {
-  const addSharedProperties = <
-    StartInput,
-    Input,
-    Error,
-    Output,
-    AsyncFnController,
-    ErrorResolverController,
-    AccumulatedAsyncFnController,
-    T extends ChainNode<
-      StartInput,
-      Input,
-      Error,
-      Output,
-      AsyncFnController,
-      ErrorResolverController,
-      AccumulatedAsyncFnController
-    >,
-  >(
-    fn: T,
+const addSharedProperties = <
+  StartInput,
+  ParentNode extends ChainNodeGenerics,
+  Node extends ChainNodeGenerics,
+  AccumulatedTypes extends ChainNodeAccumulatedTypes,
+  Defaults extends ChainNodeGenerics,
+>(
+  fn: ChainNode<StartInput, ParentNode, Node, AccumulatedTypes, Defaults>,
+  awaitFn: AccumulateChainNodeAwaitFn<StartInput, Node, AccumulatedTypes>,
+  errorNodeFn: typeof errorNode<StartInput, ParentNode, Node, AccumulatedTypes, Defaults>,
+) =>
+  Object.assign(fn, {
+    await(arg: StartInput, resultCb: ChainNodeResultCb<Node>, errorCb: ChainNodeErrorCb<Node>) {
+      return awaitFn(arg, resultCb, errorCb, { breakChain: false, controller: undefined })
+    },
+    onError(errorCb: ChainNodeErrorCb<Node>) {
+      return errorNodeFn(awaitFn, errorCb)
+    },
+    s<
+      S extends ChainNodePossibleGenerics = {},
+      NewDefaults extends ChainNodePossibleGenerics = {},
+      UpdatedDefaults extends ChainNodeGenerics = LMerge<
+        Defaults,
+        NewDefaults
+      > extends ChainNodeGenerics
+        ? LMerge<Defaults, NewDefaults>
+        : never,
+      Child extends ChainNodeGenerics = LMerge<UpdatedDefaults, S> extends ChainNodeGenerics
+        ? LMerge<UpdatedDefaults, S>
+        : never,
+      ChildAccumulatedTypes extends ChainNodeAccumulatedTypes = {
+        AccumulatedErrors: AccumulatedTypes['AccumulatedErrors'] | Child['Error']
+        AccumulatedOutputs: AccumulatedTypes['AccumulatedOutputs'] | Child['Output']
+        AccumulatedResultResolverControllers:
+          | AccumulatedTypes['AccumulatedResultResolverControllers']
+          | Child['ResultResolverController']
+        AccumulatedErrorResolverControllers:
+          | AccumulatedTypes['AccumulatedErrorResolverControllers']
+          | Child['ErrorResolverController']
+      },
+    >(syncFunction: (input: Node['Output']) => Child['Output']) {
+      return fn<S, NewDefaults, UpdatedDefaults, Child, ChildAccumulatedTypes>((input, resolver) =>
+        resolver.result(syncFunction(input)),
+      )
+    },
+  }) as ChainNode<StartInput, ParentNode, Node, AccumulatedTypes, Defaults>
+
+const errorNode = <
+  StartInput,
+  ParentNode extends ChainNodeGenerics,
+  Node extends ChainNodeGenerics,
+  AccumulatedTypes extends ChainNodeAccumulatedTypes,
+  Defaults extends ChainNodeGenerics,
+>(
+  parentAwaitFn: ChainNodeAwaitFn<StartInput, Node>,
+  upstreamErrorCb: ChainNodeErrorCb<Node>,
+) => {
+  const awaitFn: ChainNodeAwaitFn<StartInput, Node> = (arg, resultCb, _errorCb, controller) =>
+    parentAwaitFn(arg, resultCb, upstreamErrorCb, controller)
+
+  return addSharedProperties<StartInput, ParentNode, Node, AccumulatedTypes, Defaults>(
+    function ChainFn<
+      S extends ChainNodePossibleGenerics = {},
+      NewDefaults extends ChainNodePossibleGenerics = {},
+      UpdatedDefaults extends ChainNodeGenerics = LMerge<
+        Defaults,
+        NewDefaults
+      > extends ChainNodeGenerics
+        ? LMerge<Defaults, NewDefaults>
+        : never,
+      Child extends ChainNodeGenerics = LMerge<UpdatedDefaults, S> extends ChainNodeGenerics
+        ? LMerge<UpdatedDefaults, S>
+        : never,
+      ChildAccumulatedTypes extends ChainNodeAccumulatedTypes = {
+        AccumulatedErrors: AccumulatedTypes['AccumulatedErrors'] | Child['Error']
+        AccumulatedOutputs: AccumulatedTypes['AccumulatedOutputs'] | Child['Output']
+        AccumulatedResultResolverControllers:
+          | AccumulatedTypes['AccumulatedResultResolverControllers']
+          | Child['ResultResolverController']
+        AccumulatedErrorResolverControllers:
+          | AccumulatedTypes['AccumulatedErrorResolverControllers']
+          | Child['ErrorResolverController']
+      },
+    >(asyncFunction: ChainNodeAsyncFn<Node, Child, ChildAccumulatedTypes>) {
+      return newNode<StartInput, Node, Child, ChildAccumulatedTypes, UpdatedDefaults>(
+        asyncFunction,
+        (arg, resultCb, errorCb, controller) => awaitFn(arg, resultCb, errorCb, controller),
+      )
+    } as unknown as ChainNode<StartInput, ParentNode, Node, AccumulatedTypes, Defaults>,
     awaitFn,
     errorNode,
-  ) =>
-    Object.assign(fn, {
-      await(
-        arg: StartInput,
-        resultCb: ResultCb<Output, AsyncFnController>,
-        errorCb: ErrorCb<Error, Output, AsyncFnController, ErrorResolverController>,
-      ) {
-        return awaitFn(arg, resultCb, errorCb, {})
-      },
-      onError(errorCb: ErrorCb<Error, Output, AsyncFnController, ErrorResolverController>) {
-        return errorNode(awaitFn, errorCb)
-      },
-      s<
-        ChildOut = DefaultInputOutput,
-        ChildError = DefaultError,
-        // ChildAsyncFnController = DefaultAsyncFnController,
-        ChildErrorResolverController = DefaultErrorResolverController,
-      >(syncFunction: (input: Output) => ChildOut) {
-        return fn<ChildOut, ChildError, AsyncFnController, ChildErrorResolverController>(
-          (input, resolver) => resolver.result(syncFunction(input)),
-        )
-      },
-    }) as T
-
-  const errorNode = <
-    Input,
-    Error,
-    Output,
-    AsyncFnController,
-    ErrorResolverController,
-    AccumulatedAsyncFnController,
-    // Parent extends ChainNode<any, any, any, any, any, any, any>,
-    StartInput,
-  >(
-    parentAwaitFn: <
-      ParentOutput,
-      ParentError,
-      ParentAsyncFnController,
-      ParentErrorResolverController,
-    >(
-      arg: StartInput,
-      resultCb: ResultCb<ParentOutput, ParentAsyncFnController>,
-      errorCb: ErrorCb<
-        ParentError,
-        ParentOutput,
-        ParentAsyncFnController,
-        ParentErrorResolverController
-      >,
-      controller: AwaitedChainNode<AccumulatedAsyncFnController>,
-    ) => AwaitedChainNode<AccumulatedAsyncFnController>,
-    upstreamErrorCb: ErrorCb<Error, Output, AsyncFnController, ErrorResolverController>,
-  ) => {
-    // debugger
-    const awaitFn = (
-      arg: StartInput,
-      resultCb: ResultCb<Output, AsyncFnController>,
-      errorCb: ErrorCb<Error, Output, AsyncFnController, ErrorResolverController>,
-      controller: AwaitedChainNode<AccumulatedAsyncFnController>,
-    ) => parentAwaitFn(arg, resultCb, upstreamErrorCb, controller)
-
-    const fn = function ChainFn<
-      ChildOut = DefaultInputOutput,
-      ChildError = DefaultError,
-      ChildAsyncFnController = DefaultAsyncFnController,
-      ChildErrorResolverController = DefaultErrorResolverController,
-    >(
-      asyncFunction: (
-        input: Output,
-        resolver: Pins<ChildOut, ChildError, ChildAsyncFnController, ChildErrorResolverController>,
-      ) => ChildAsyncFnController,
-    ) {
-      // addChild
-
-      return newNode<
-        Output,
-        ChildError,
-        ChildOut,
-        ChildAsyncFnController,
-        ChildErrorResolverController,
-        AccumulatedAsyncFnController | ChildAsyncFnController,
-        // typeof fn,
-        StartInput
-      >(asyncFunction, (arg, resultCb, errorCb, controller) =>
-        awaitFn(
-          arg,
-          resultCb as unknown as ResultCb<Output, AsyncFnController>,
-          errorCb as unknown as ErrorCb<Error, Output, AsyncFnController, ErrorResolverController>,
-          controller as unknown as AwaitedChainNode<AccumulatedAsyncFnController>,
-        ),
-      )
-    } as unknown as ChainNode<
-      StartInput,
-      Input,
-      Error,
-      Output,
-      AsyncFnController,
-      ErrorResolverController,
-      AccumulatedAsyncFnController
-    >
-    // debugger
-    return addSharedProperties<
-      StartInput,
-      Input,
-      Error,
-      Output,
-      AsyncFnController,
-      ErrorResolverController,
-      AccumulatedAsyncFnController,
-      ChainNode<
-        StartInput,
-        Input,
-        Error,
-        Output,
-        AsyncFnController,
-        ErrorResolverController,
-        AccumulatedAsyncFnController
-      >
-    >(fn, awaitFn, errorNode)
-  }
-
-  const newNode = <
-    Input,
-    Error,
-    Output,
-    AsyncFnController,
-    ErrorResolverController,
-    AccumulatedAsyncFnController,
-    // ParentAwaitFn, // extends ChainNode<any, any, any, any, any, any, any> | undefined,
-    StartInput,
-  >(
-    asyncFn: (
-      input: Input,
-      resolver: Pins<Output, Error, AsyncFnController, ErrorResolverController>,
-    ) => AsyncFnController,
-    parentAwaitFn?: <
-      ParentOutput,
-      ParentError,
-      ParentAsyncFnController,
-      ParentErrorResolverController,
-    >(
-      arg: StartInput,
-      resultCb: ResultCb<ParentOutput, ParentAsyncFnController>,
-      errorCb: ErrorCb<
-        ParentError,
-        ParentOutput,
-        ParentAsyncFnController,
-        ParentErrorResolverController
-      >,
-      controller: AwaitedChainNode<AccumulatedAsyncFnController>,
-    ) => AwaitedChainNode<AccumulatedAsyncFnController>,
-  ) => {
-    const awaitFn = (
-      arg: StartInput,
-      resultCb: ResultCb<Output, AsyncFnController>,
-      errorCb: ErrorCb<Error, Output, AsyncFnController, ErrorResolverController>,
-      controller: AwaitedChainNode<AccumulatedAsyncFnController>,
-    ) => {
-      const execute = (input) => {
-        const pins = FunctionAssign(
-          // eslint-disable-next-line prefer-arrow-callback
-          function PinsFn(resultArg) {
-            return pins.result(resultArg)
-          }, // as Pins<Output, Error, AsyncFnController, ErrorResolverController>
-          {
-            result(resultArg) {
-              const res = resultCb(resultArg)
-              controller.controller = res as unknown as AccumulatedAsyncFnController
-              return res
-            },
-            error(errorArg) {
-              return errorCb(errorArg, pins.result)
-            },
-          },
-        )
-        return asyncFn(input, pins)
-      }
-
-      if (parentAwaitFn) return parentAwaitFn(arg, execute, errorCb, controller)
-      controller.controller = execute(arg) as unknown as AccumulatedAsyncFnController
-      return controller
-    }
-
-    const fn = function ChainFn<
-      ChildOut = DefaultInputOutput,
-      ChildError = DefaultError,
-      ChildAsyncFnController = DefaultAsyncFnController,
-      ChildErrorResolverController = DefaultErrorResolverController,
-    >(
-      asyncFunction: (
-        input: Output,
-        resolver: Pins<ChildOut, ChildError, ChildAsyncFnController, ChildErrorResolverController>,
-      ) => ChildAsyncFnController,
-    ) {
-      // addChild
-      return newNode<
-        Output,
-        ChildError,
-        ChildOut,
-        ChildAsyncFnController,
-        ChildErrorResolverController,
-        AccumulatedAsyncFnController | ChildAsyncFnController,
-        // any,
-        StartInput
-      >(asyncFunction, (arg, resultCb, errorCb, controller) =>
-        awaitFn(
-          arg,
-          resultCb as unknown as ResultCb<Output, AsyncFnController>,
-          errorCb as unknown as ErrorCb<Error, Output, AsyncFnController, ErrorResolverController>,
-          controller as unknown as AwaitedChainNode<AccumulatedAsyncFnController>,
-        ),
-      )
-    } as unknown as ChainNode<
-      StartInput,
-      Input,
-      Error,
-      Output,
-      AsyncFnController,
-      ErrorResolverController,
-      AccumulatedAsyncFnController
-    >
-    // debugger
-    return addSharedProperties<
-      StartInput,
-      Input,
-      Error,
-      Output,
-      AsyncFnController,
-      ErrorResolverController,
-      AccumulatedAsyncFnController,
-      ChainNode<
-        StartInput,
-        Input,
-        Error,
-        Output,
-        AsyncFnController,
-        ErrorResolverController,
-        AccumulatedAsyncFnController
-      >
-    >(fn, awaitFn, errorNode)
-  }
-  return newNode
+  )
 }
-
-const chain = <
-  DefaultInputOutput = unknown,
-  DefaultError = unknown,
-  DefaultAsyncFnController = void,
-  DefaultErrorResolverController = void,
-  Input = DefaultInputOutput,
-  Error = DefaultError,
-  Output = DefaultInputOutput,
-  AsyncFnController = DefaultAsyncFnController,
-  ErrorResolverController = DefaultErrorResolverController,
+function newNode<
+  StartInput,
+  ParentNode extends ChainNodeGenerics,
+  Node extends ChainNodeGenerics,
+  AccumulatedTypes extends ChainNodeAccumulatedTypes,
+  Defaults extends ChainNodeGenerics,
 >(
-  options?: ChainOptions,
-) => {
-  const opts: ChainOptions = {
-    asyncByDefault: true,
-    ...options,
+  asyncFn: ChainNodeAsyncFn<ParentNode, Node, AccumulatedTypes>,
+  parentAwaitFn?: ChainNodeAwaitFn<StartInput, ParentNode>,
+) {
+  const awaitFn: ChainNodeAwaitFn<StartInput, Node> = (input, resultCb, errorCb, controller) => {
+    const execute = (inputArg: StartInput | ParentNode['Output']) => {
+      const pins = functionAssign(
+        // eslint-disable-next-line prefer-arrow-callback
+        function PinsFn(resultArg) {
+          return pins.result(resultArg)
+        } as unknown as Pins<Node, AccumulatedTypes>,
+        {
+          result(resultArg: Node['Output']) {
+            controller.controller = undefined
+            const res = resultCb(resultArg)
+            controller.controller = res
+            return res
+          },
+          error(errorArg: Node['Error']) {
+            return errorCb(errorArg, pins.result)
+          },
+        },
+      )
+      return asyncFn(inputArg, pins)
+    }
+    controller.controller = undefined
+    if (parentAwaitFn) return parentAwaitFn(input, execute, errorCb as any, controller as any)
+    controller.controller = execute(input)
+    return controller
   }
-  const nNode = startChain<
-    DefaultInputOutput,
-    DefaultError,
-    DefaultAsyncFnController,
-    DefaultErrorResolverController
-  >()
 
-  return <
-    ChildOut = Output,
-    ChildError = Error,
-    ChildAsyncFnController = AsyncFnController,
-    ChildErrorResolverController = ErrorResolverController,
-  >(
-    asyncFn: (
-      input: Input,
-      resolver: Pins<ChildOut, ChildError, ChildAsyncFnController, ChildErrorResolverController>,
-    ) => AsyncFnController,
-  ) =>
-    nNode<
-      Input,
-      ChildError,
-      ChildOut,
-      ChildAsyncFnController,
-      ChildErrorResolverController,
-      AsyncFnController | ChildAsyncFnController,
-      // undefined,
-      Input
-    >(
-      asyncFn as unknown as (
-        input: Input,
-        resolver: Pins<ChildOut, ChildError, ChildAsyncFnController, ChildErrorResolverController>,
-      ) => ChildAsyncFnController,
-    )
+  return addSharedProperties<StartInput, ParentNode, Node, AccumulatedTypes, Defaults>(
+    function ChainFn<
+      S extends ChainNodePossibleGenerics = {},
+      NewDefaults extends ChainNodePossibleGenerics = {},
+      UpdatedDefaults extends ChainNodeGenerics = LMerge<
+        Defaults,
+        NewDefaults
+      > extends ChainNodeGenerics
+        ? LMerge<Defaults, NewDefaults>
+        : never,
+      Child extends ChainNodeGenerics = LMerge<UpdatedDefaults, S> extends ChainNodeGenerics
+        ? LMerge<UpdatedDefaults, S>
+        : never,
+      ChildAccumulatedTypes extends ChainNodeAccumulatedTypes = {
+        AccumulatedErrors: AccumulatedTypes['AccumulatedErrors'] | Child['Error']
+        AccumulatedOutputs: AccumulatedTypes['AccumulatedOutputs'] | Child['Output']
+        AccumulatedResultResolverControllers:
+          | AccumulatedTypes['AccumulatedResultResolverControllers']
+          | Child['ResultResolverController']
+        AccumulatedErrorResolverControllers:
+          | AccumulatedTypes['AccumulatedErrorResolverControllers']
+          | Child['ErrorResolverController']
+      },
+    >(asyncFunction: ChainNodeAsyncFn<Node, Child, ChildAccumulatedTypes>) {
+      return newNode<StartInput, Node, Child, ChildAccumulatedTypes, UpdatedDefaults>(
+        asyncFunction,
+        (arg, resultCb, errorCb, controller) =>
+          awaitFn(arg, resultCb as any, errorCb as any, controller as any),
+      )
+    } as unknown as ChainNode<StartInput, ParentNode, Node, AccumulatedTypes, Defaults>,
+    awaitFn,
+    errorNode,
+  )
 }
-
-export default chain
-
-// const a = chain<string>()
-// const b = a<number>((x, resolver) => {
-//   console.log(x)
-//   resolver(1)
-// })
-// const c = b<boolean, string>((x, resolver) => {
-//   console.log(`2:${x}`)
-//   const y = resolver(true)
-//   console.log(y)
-// })
-// const cX = c.onError((err) => {
-//   console.log(`c.onError:${err}`)
-// })
-// const d = cX<string, string>((x, resolver) => {
-//   console.log(x ? '3: true' : '3: false')
-//   resolver('final error1')
-//   return 10
-// })
-
-// d.input(
-//   'I',
-//   (out) => {
-//     console.log(out)
-//   },
-//   (err) => {
-//     console.log(`err:${err}`)
-//   },
-// )
-
-// const a1 = chain<string, string, string>()
-// const b1 = a1((x, resolver) => {
-//   console.log(`a1:${x}`)
-//   resolver('a1')
-// })
-// const c1 = b1((x, resolver) => {
-//   console.log(`b1:${x}`)
-//   debugger
-//   resolver('b1')
-// })
-// const d1 = c1((x, resolver) => {
-//   console.log(`c2:${x}`)
-//   debugger
-//   resolver('c2')
-// })
-// debugger
-// const d2 = d1.onError((err) => {
-//   console.log(`d1.onError:${err}`)
-// })
-// const e1 = d2((x, resolver) => {
-//   console.log(`d1:${x}`)
-//   debugger
-//   resolver('e1')
-// })
-// e1.input(
-//   'I',
-//   (out) => {
-//     console.log(out)
-//   },
-//   //   (err) => {
-//   //     console.log(`err:${err}`)
-//   //   },
-// )
-
-// // this type is obviously wrong as it has the same generics at both the top and property levels - i.e. generics are being redefined
-// // as more information is available - hence my original stackoverflow question.
-// type Chain<Input, Error = unknown, Output = unknown, StartInput = Input, FinalOutput = Output> = {
-//   <Out = Output, ErrorType = Error>(
-//     callback: (input: Input, resolver: Pins<Out, Error | ErrorType>) => void,
-//   ): Chain<Out, Error | ErrorType, Out, StartInput, Out>
-//   onResult<Out, ErrorType = Error>(
-//     callback: (input: Input, resolver: Pins<Out, ErrorType>) => void,
-//   ): Chain<Out, Error | ErrorType, Out, StartInput, Out>
-//   onError(callback: (error: Error) => void): Chain<Input, Error, Output, StartInput, FinalOutput>
-//   input(startInput: StartInput, resultCb: ResultCb<FinalOutput>, errorCb: ErrorCb<Error>): void
-//   pins: Pins<Output, Error>
-// }
 
 // const chain = <
-//   Input,
-//   Error = unknown,
-//   Output = Input,
-//   AsyncFnController = void,
-//   ErrorResolverController = void,
-//   AccumulatedAsyncFnController = AsyncFnController,
+//   T extends {
+//     Output?: unknown
+//     Error?: unknown
+//     ResultResolverController?: unknown
+//     ErrorResolverController?: unknown
+//     Input?: unknown
+//   } = {},
+//   Defaults extends Partial<ChainNodeGenericsWithInputOutput> = {},
+//   NormalisedDefaults extends ChainNodeGenericsWithInputOutput = LMerge<
+//     NeverChainNodeGenerics,
+//     Defaults
+//   >,
+//   FinalDefaults extends ChainNodeGenericsWithInput = {
+//     Input: NormalisedDefaults['InputOutput']
+//     Error: NormalisedDefaults['Error']
+//     Output: NormalisedDefaults['InputOutput']
+//     ResultResolverController: NormalisedDefaults['ResultResolverController']
+//     ErrorResolverController: NormalisedDefaults['ErrorResolverController']
+//   },
+//   Node extends ChainNodeGenericsWithInput = LMerge<
+//     FinalDefaults,
+//     T
+//   > extends ChainNodeGenericsWithInput
+//     ? LMerge<FinalDefaults, T>
+//     : never,
+//   AccumulatedTypes extends ChainNodeAccumulatedTypes = {
+//     AccumulatedErrors: Node['Error']
+//     AccumulatedOutputs: Node['Output']
+//     AccumulatedResultResolverControllers: Node['ResultResolverController']
+//     AccumulatedErrorResolverControllers: Node['ErrorResolverController']
+//   },
 // >(
 //   options?: ChainOptions,
 // ) => {
@@ -563,109 +457,115 @@ export default chain
 //     asyncByDefault: true,
 //     ...options,
 //   }
-//   const chainController: { controller: AccumulatedAsyncFnController | undefined } = {
+
+//   function fn<
+//     S extends ChainNodePossibleGenerics = {},
+//     NewDefaults extends ChainNodePossibleGenerics = {},
+//     UpdatedDefaults extends ChainNodeGenerics = LMerge<
+//       FinalDefaults,
+//       NewDefaults
+//     > extends ChainNodeGenerics
+//       ? LMerge<FinalDefaults, NewDefaults>
+//       : never,
+//     Child extends ChainNodeGenerics = LMerge<UpdatedDefaults, S> extends ChainNodeGenerics
+//       ? LMerge<UpdatedDefaults, S>
+//       : never,
+//     ChildAccumulatedTypes extends ChainNodeAccumulatedTypes = {
+//       AccumulatedErrors: AccumulatedTypes['AccumulatedErrors'] | Child['Error']
+//       AccumulatedOutputs: AccumulatedTypes['AccumulatedOutputs'] | Child['Output']
+//       AccumulatedResultResolverControllers:
+//         | AccumulatedTypes['AccumulatedResultResolverControllers']
+//         | Child['ResultResolverController']
+//       AccumulatedErrorResolverControllers:
+//         | AccumulatedTypes['AccumulatedErrorResolverControllers']
+//         | Child['ErrorResolverController']
+//     },
+//   >(asyncFunction: ChainNodeAsyncFn<Node, Child, ChildAccumulatedTypes>) {
+//     return newNode<Node['Input'], Node, Child, ChildAccumulatedTypes, UpdatedDefaults>(
+//       asyncFunction,
+//     )
+//   }
+//   return Object.assign(fn, {
+//     breakChain: false,
 //     controller: undefined,
-//   }
-
-//   const chainI = <I, Err, Out, AFnController, EController, AccAFnController>(
-//     parent?: ChainNode<I, Err, Out, AFnController, EController, AccAFnController>,
-//   ): ChainNode<I, Err, Out, AFnController, EController, AccAFnController> => {
-//     const fn = function ChainFn<
-//       ChildOut,
-//       ChildError = Err,
-//       ChildAsyncFnController = AFnController,
-//       ChildErrorResolverController = EController,
-//     >(
-//       asyncFunction: (
-//         input: Out,
-//         resolver: Pins<ChildOut, ChildError, ChildAsyncFnController, ChildErrorResolverController>,
-//       ) => ChildAsyncFnController,
-//     ) {
-//       // addChild
-//       debugger
-//       // const actualParent = parent
-//       Object.assign(fn, {
-//         await(
-//           input: Out,
-//           resultCb: ResultCb<ChildOut, ChildAsyncFnController>,
-//           errorCb: ErrorCb<
-//             ChildError,
-//             ChildOut,
-//             ChildAsyncFnController,
-//             ChildErrorResolverController
-//           >,
-//         ) {
-//           const pins = function PinsFn(resultArg: ChildOut) {
-//             return pins.result(resultArg)
-//           } as Pins<ChildOut, ChildError, ChildAsyncFnController, ChildErrorResolverController>
-
-//           Object.assign(pins, {
-//             result(resultArg: ChildOut) {
-//               const res = resultCb(resultArg)
-//               chainController.controller = res as unknown as AccumulatedAsyncFnController
-//               return res
-//             },
-//             error(errorArg: ChildError) {
-//               return errorCb(errorArg, pins.result)
-//             },
-//           })
-//           if (parent) {
-//             return parent.await(
-//               input as unknown as I,
-//               ((result) => asyncFunction(result, pins)) as unknown as ResultCb<Out, AFnController>,
-//               errorCb as unknown as ErrorCb<Err, Out, AFnController, EController>,
-//             )
-//           }
-//           return asyncFunction(input, pins)
-//         },
-//       })
-//       return chainI(fn)
-//     } as unknown as ChainNode<I, Err, Out, AFnController, EController, AccAFnController>
-//     debugger
-//     Object.assign(fn, {
-//       await(
-//         arg: I,
-//         resultCb: ResultCb<Out, AFnController>,
-//         errorCb: ErrorCb<Err, Out, AFnController, EController>,
-//       ) {
-//         debugger
-//         if (parent) {
-//           parent.await(arg, resultCb, errorCb)
-//           return chainController
-//         }
-//         throw new Error('chain is empty - nothing to await')
-//       },
-//       onError(errorCb: ErrorCb<Err, Out, AFnController, EController>) {
-//         return fn((input, resolver) => resolver.result(input), errorCb)
-//       },
-//       s<
-//         ChildOut,
-//         ChildError = Err,
-//         ChildAsyncFnController = AFnController,
-//         ChildErrorResolverController = EController,
-//       >(syncFunction: (input: Out) => ChildOut) {
-//         return fn<ChildOut, ChildError, ChildAsyncFnController, ChildErrorResolverController>(
-//           (
-//             input: Out,
-//             resolver: Pins<
-//               ChildOut,
-//               Err | ChildError,
-//               ChildAsyncFnController,
-//               ChildErrorResolverController
-//             >,
-//           ) => resolver.result(syncFunction(input)) as unknown as AFnController,
-//         )
-//       },
-//     })
-
-//     return fn
-//   }
-//   return chainI<
-//     Input,
-//     Error,
-//     Output,
-//     AsyncFnController,
-//     ErrorResolverController,
-//     AccumulatedAsyncFnController
-//   >()
+//   })
 // }
+
+// type z = RenameProperty<{}, 'Input', 'Output'>
+
+const chain = <
+  RootNodeTypes extends {
+    Input?: unknown
+    ResultResolverController?: unknown
+    ErrorResolverController?: unknown
+  } = {},
+  NodeTypes extends ChainNodePossibleGenerics = {},
+  Defaults extends Partial<ChainNodeGenericsWithInputOutput> = {},
+  FinalDefaults extends ChainNodeGenerics = RenameProperty<
+    LMerge<NeverChainNodeGenerics, Defaults>,
+    'InputOutput',
+    'Output'
+  >,
+  FakeRootNode extends ChainNodeGenerics = LMerge<
+    FinalDefaults,
+    RenameProperty<RootNodeTypes, 'Input', 'Output'>
+  > extends ChainNodeGenerics
+    ? LMerge<FinalDefaults, RenameProperty<RootNodeTypes, 'Input', 'Output'>>
+    : never,
+  Node extends ChainNodeGenerics = LMerge<FinalDefaults, NodeTypes> extends ChainNodeGenerics
+    ? LMerge<FinalDefaults, NodeTypes>
+    : never,
+  AccumulatedTypes extends ChainNodeAccumulatedTypes = {
+    AccumulatedErrors: Node['Error']
+    AccumulatedOutputs: Node['Output']
+    AccumulatedResultResolverControllers:
+      | FakeRootNode['ResultResolverController']
+      | Node['ResultResolverController']
+    AccumulatedErrorResolverControllers:
+      | FakeRootNode['ErrorResolverController']
+      | Node['ErrorResolverController']
+  },
+>(
+  asyncFunction: ChainNodeAsyncFn<FakeRootNode, Node, AccumulatedTypes>,
+) =>
+  newNode<FakeRootNode['Output'], FakeRootNode, Node, AccumulatedTypes, FinalDefaults>(
+    asyncFunction,
+  )
+
+// const chn1 = chain<
+//   { Input: string; },
+//   { Output: number },
+//   { ResultResolverController: void }
+// >('a' as any)
+
+// function fn<
+//   S extends ChainNodePossibleGenerics = {},
+//   NewDefaults extends ChainNodePossibleGenerics = {},
+//   UpdatedDefaults extends ChainNodeGenerics = LMerge<
+//     FinalDefaults,
+//     NewDefaults
+//   > extends ChainNodeGenerics
+//     ? LMerge<FinalDefaults, NewDefaults>
+//     : never,
+//   Child extends ChainNodeGenerics = LMerge<UpdatedDefaults, S> extends ChainNodeGenerics
+//     ? LMerge<UpdatedDefaults, S>
+//     : never,
+//   ChildAccumulatedTypes extends ChainNodeAccumulatedTypes = {
+//     AccumulatedErrors: AccumulatedTypes['AccumulatedErrors'] | Child['Error']
+//     AccumulatedOutputs: AccumulatedTypes['AccumulatedOutputs'] | Child['Output']
+//     AccumulatedResultResolverControllers:
+//       | AccumulatedTypes['AccumulatedResultResolverControllers']
+//       | Child['ResultResolverController']
+//     AccumulatedErrorResolverControllers:
+//       | AccumulatedTypes['AccumulatedErrorResolverControllers']
+//       | Child['ErrorResolverController']
+//   },
+// >(asyncFunction: ChainNodeAsyncFn<Node, Child, ChildAccumulatedTypes>) {
+//   return newNode<Node['Input'], Node, Child, ChildAccumulatedTypes, UpdatedDefaults>(
+//     asyncFunction,
+//   )
+// }
+
+// }
+
+export default chain
