@@ -1,5 +1,3 @@
-import { C } from 'vitest/dist/global-60f880c6'
-
 export const createUid = (length = 20): string =>
   Array.from({ length }, () => Math.random().toString(36)[2]).join('')
 
@@ -477,11 +475,11 @@ export function functionClass<
       return (self[callAction] as any)(...callArgs)
     } as unknown as ClassType
 
-    const instantiatorFn = ((...args1: PrivateVariables) => {
+    const instantiatorFn = (...args1: PrivateVariables) => {
       const obj = instantiator.apply(self, args1)
       Object.assign(self, obj)
       return self
-    }) as unknown as Instantiator
+    }
 
     const that = ctor.call(self, instantiatorFn, ...args)
     return that
