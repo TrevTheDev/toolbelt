@@ -123,7 +123,8 @@ chain<{
   ResultResolverController?: any // Second node's return type
   ErrorResolverController?: any  // Second node's ErrorCb return type  
 }, { 
-  // the following generics are defaults that apply to the entire chain. They  can be overridden or modified
+  // the following generics are defaults that apply to the entire chain. 
+  // They  can be overridden or modified
   InputOutput?: any     
   Error?: any                                  
   ResultResolverController?: any 
@@ -164,7 +165,8 @@ Each AsyncFn added to the chain, creates a new `ChainNode`.  ChainNodes can have
     ResultResolverController?: any // Subsequent node's return type
     ErrorResolverController?: any  // Subsequent node's ErrorCb return type  
   }, { 
-    // the following generics are defaults that apply to any subsequent nodes. They can be overridden or modified
+    // the following generics are defaults that apply to any subsequent nodes. 
+    // They can be overridden or modified
     Error?: any                    
     Output?: any                   
     ResultResolverController?: any 
@@ -214,3 +216,4 @@ const fn = compose(
 )
 console.log(fn('start')) //`start:A:B`
 ```
+
