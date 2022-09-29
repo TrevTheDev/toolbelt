@@ -1,155 +1,167 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { ResultCb, ErrorCb, CancelFn, AsyncEffect } from './asyncMap'
+// import type { ResultCb, ErrorCb, CancelFn, AsyncEffect } from './asyncMap'
 import groupObjectsOrFunctions from './groupObjectsOrFunctions'
 
 // type CancelFn<CancelFnArgs extends unknown[]> = (...args: CancelFnArgs)=>void
 
-const x = new Map<string, number>()
+type ResultCb<ResultCbArgs extends unknown[]> = (...resultArgs: ResultCbArgs) => void
+type ErrorCb<ErrorCbArgs extends unknown[]> = (...errorArgs: ErrorCbArgs) => void
 
-type FinalResultCb<ResultArgs extends any[], ErrorArgs extends any[]> = (results: Queue<ResultArgs>, errors: Queue<ErrorArgs>) => void
+export type AsyncEffect<
+  ResultCbArgs extends unknown[],
+  ErrorCbArgs extends unknown[] | undefined,
+  AsyncControl,
+  EArgs extends unknown[] = ErrorCbArgs extends undefined ? never : ErrorCbArgs,
+> = ErrorCbArgs extends undefined
+  ? (resultCb: ResultCb<ResultCbArgs>) => AsyncControl
+  : (resultCb: ResultCb<ResultCbArgs>, errorCb: ErrorCb<EArgs>) => AsyncControl
 
-type ErrorCbHandlerFn<ResultArgs extends any[], ErrorArgs extends any[], CancelArgs extends any[]> = (
-  error: ErrorArgs,
-  resultQueue: Map<number, ResultArgs>,
-  errorQueue: Map<number, ErrorArgs>,
-  cancelQueue: Map<number, (...args: CancelArgs) => void>,
-) => void
+type GetErrorCbArgs<
+  T extends AsyncEffect<unknown[], unknown[] | undefined, unknown>,
+  P = Parameters<T>,
+  S = P extends [resultCb: ResultCb<any>, errorCb: ErrorCb<any>] ? Parameters<P[1]> : undefined,
+> = S
 
-type Callback<ResultArgs extends any[], ErrorArgs extends any[], CancelArgs extends any[]> = (
-  resultCb: ResultCb<ResultArgs>,
-  errorCb: ErrorCb<ErrorArgs>,
-) => CancelFn<CancelArgs> | void
+type AsyncEffectsParamArray<
+  T extends AsyncEffect<unknown[], unknown[] | undefined, unknown>[],
+  P extends 0 | 1,
+  C = T extends []
+    ? []
+    : T extends [
+        infer First extends AsyncEffect<unknown[], unknown[], unknown>,
+        ...infer Tail extends AsyncEffect<unknown[], unknown[], unknown>[],
+      ]
+    ? [
+        P extends 1 ? GetErrorCbArgs<First> : Parameters<Parameters<First>[0]>,
+        ...AsyncEffectsParamArray<Tail, P>,
+      ]
+    : never,
+  C2 = C extends infer O ? { [K in keyof O]: O[K] } : never,
+> = C2 extends [...results: (unknown[] | undefined)[]] ? C2 : never
 
-type State = 'init' | 'awaited' | 'asyncMapInProgress' | 'done' | 'error'
+// type X = AsyncEffectsParamArray<
+//   [
+//     (resCb: (result: 'ra', a: 'a') => void, errCb: (error: 'ea') => void) => 'rva',
+//     (resCb: (result: 'rb') => void) => 'rvb',
+//     (resCb: (result: 'rc') => void, errCb: (error: 'ec') => void) => 'rvc',
+//   ],
+//   1
+// >
 
-type AsyncEffectState = 'executing' | 'cancelled' | 'resolved'
-
-interface AsyncEffectsInParallelController<ResultCbArgs extends any[] = any[], ErrorCbArgs extends any[] = any[], AsyncControl = void> {
-  readonly state: State
-  readonly controller?: AsyncControl
-  readonly resultQueue: Map<number, ResultCbArgs>
-  readonly errorQueue: Map<number, ErrorCbArgs>
-  readonly controllerQueue: Map<number, AsyncControl>
-}
-
-export interface AsyncEffectsInParallel<
-  ResultCbArgs extends any[] = any[],
-  ErrorCbArgs extends any[] = any[],
-  Speakers extends [resultCb: ResultCb<ResultCbArgs>, errorCb?: ErrorCb<ErrorCbArgs>, ...speakers: ((...args) => any)[]] = [
-    resultCb: ResultCb<ResultCbArgs>,
-    errorCb: ErrorCb<ErrorCbArgs>,
-    ...speakers: ((...args) => any)[],
+function asyncEffectsInParallel<
+  AsyncEffects extends [
+    asyncEffect: AsyncEffect<unknown[], unknown[] | undefined, unknown>,
+    ...asyncEffects: AsyncEffect<unknown[], unknown[] | undefined, unknown>[],
   ],
-  AsyncControl = void,
-> {
-  await(resolve: (value) => void, reject: (reason?) => void): void
-  await(
-    resultCb: (...results: ResultCbArgs) => void,
-    errorCb: (...errorArgs: ErrorCbArgs) => void,
-    ...speakers: Speakers
-  ): AsyncEffectsInParallelController<ResultCbArgs, ErrorCbArgs, AsyncControl>
-  then<T>(): Promise<T>['then']
-  catch<T>(): Promise<T>['catch']
-}
-
-function callbacksInParallel<
-  ResultCbArgs extends any[] = any[],
-  ErrorCbArgs extends any[] = any[],
-  Speakers extends [resultCb: ResultCb<ResultCbArgs>, errorCb?: ErrorCb<ErrorCbArgs>, ...speakers: ((...args) => any)[]] = [
-    resultCb: ResultCb<ResultCbArgs>,
-    errorCb: ErrorCb<ErrorCbArgs>,
-    ...speakers: ((...args) => any)[],
-  ],
-  AsyncControl = void,
->(...asyncEffects: AsyncEffect<ResultCbArgs, ErrorCbArgs, Speakers, AsyncControl>[]): AsyncEffectsInParallel<ResultCbArgs, ErrorCbArgs, Speakers, AsyncControl> {
-  let asyncEffectsInParallel: AsyncEffectsInParallel<ResultCbArgs, ErrorCbArgs, Speakers, AsyncControl>
+  ResultsArray extends unknown[] = AsyncEffectsParamArray<AsyncEffects, 0>,
+  ErrorsArray extends unknown[] = AsyncEffectsParamArray<AsyncEffects, 1>,
+>(...asyncEffects: AsyncEffects) {
+  type State = 'init' | 'awaited' | 'halted' | 'done' | 'error'
 
   let state: State = 'init'
 
-  asyncEffectsInParallel = {
-    await: (resultCb, errorCb?, ...speakers) => {
+  const aEffectsInParallel = {
+    await: (
+      resultCb: (resultArray: ResultsArray) => void,
+      errorCb?: (errorArray: ErrorsArray, resultArray: ResultsArray) => void,
+    ) => {
       state = 'awaited'
+      let hasErrors = false
+      const arrayLength = asyncEffects.length
+      const resultArray = new Array(arrayLength) as Partial<ResultsArray>
+      const errorArray = new Array(arrayLength) as Partial<ErrorsArray>
+      const controllerArray = new Array<unknown | undefined>(arrayLength)
 
-      const resultQueue = new Map<number, ResultCbArgs>()
-      const errorQueue = new Map<number, ErrorCbArgs>()
-      const controllerQueue = new Map<number, AsyncControl>()
-
-      const arrayLength: number = asyncEffects.length
-      let fnsAddedCount = 0
       let resultCount = 0
 
-      const finalDoneCb = (...args) => {
+      const finalDoneCb = () => {
         state = 'done'
-        resultCb(...args)
+        resultCb(resultArray as ResultsArray)
       }
 
-      const finalErrorCb = (...args) => {
+      const finalErrorCb = () => {
         state = 'error'
-        if (!errorCb) throw new Error(args.toString())
-        errorCb(...args)
+        if (!errorCb) throw new Error('no `errorCb` provided, and one is required')
+        errorCb(errorArray as ErrorsArray, resultArray as ResultsArray)
       }
 
-      const asyncEffectsInParallelController: AsyncEffectsInParallelController<ResultCbArgs, ErrorCbArgs, AsyncControl> = {
+      const asyncEffectsInParallelController = {
         get state() {
           return state
         },
-        get controller() {
-          return groupObjectsOrFunctions(...controllerQueue.queue)
+        get controllers() {
+          return controllerArray.filter((controller) => controller !== undefined) as unknown[]
         },
         get resultQueue() {
-          return resultQueue
+          return resultArray
         },
         get errorQueue() {
-          return errorQueue
+          return errorArray
         },
         get controllerQueue() {
-          return controllerQueue
+          return controllerArray
+        },
+        halt() {
+          state = 'halted'
         },
       }
 
-      const runAsyncEffect = (asyncEffect: AsyncEffect<ResultCbArgs, ErrorCbArgs, Speakers, AsyncControl>) => {
+      const runAsyncEffect = (asyncEffect, idx) => {
+        type AsyncEffectState = 'executing' | 'cancelled' | 'resolved'
+
         let asyncEffectState: AsyncEffectState = 'executing'
-        const idx = fnsAddedCount
-        fnsAddedCount += 1
-        function cleanUpAndCheckDone(finalQueue: Map<number, ResultCbArgs>, result: ResultCbArgs, inject?: () => void): void
-        function cleanUpAndCheckDone(finalQueue: Map<number, ErrorCbArgs>, error: ErrorCbArgs, inject?: () => void): void
-        function cleanUpAndCheckDone(finalQueue: Map<number, any>, result: unknown[], inject?: () => void): void {
+
+        function cleanUpAndCheckDone(
+          finalQueue: Partial<ResultsArray> | Partial<ErrorsArray>,
+          result: any[],
+        ) {
           if (asyncEffectState === 'executing' && state === 'awaited') {
             asyncEffectState = 'resolved'
-            controllerQueue.delete(idx)
-            finalQueue.set(idx, result)
+            controllerArray[idx as unknown as number] = undefined
+            finalQueue[idx] = result
             resultCount += 1
-            if (inject) inject()
-            if (resultCount === arrayLength) finalDoneCb(resultQueue, errorQueue)
+            if (resultCount === arrayLength) {
+              if (hasErrors) finalErrorCb()
+              else finalDoneCb()
+            }
           }
         }
 
-        const cancelFn = asyncEffect(
-          (...results) => cleanUpAndCheckDone(resultQueue, results),
-          (...errorResults) => cleanUpAndCheckDone(errorQueue, errorResults, () => finalErrorCb(errorResults, resultQueue, errorQueue, controllerQueue)),
+        controllerArray[idx as unknown as number] = asyncEffect(
+          (...results: any[]) => cleanUpAndCheckDone(resultArray, results),
+          (...errorResults: any[]) => {
+            hasErrors = true
+            return cleanUpAndCheckDone(errorArray, errorResults)
+          },
         )
-
-        if (cancelFn && asyncEffectState === 'executing' && state === 'awaited') {
-          controllerQueue.set(idx, (...args: CancelArgs) => {
-            controllerQueue.delete(idx)
-            cancelFn(...args)
-          })
-        }
       }
 
-      asyncEffects.forEach((asyncEffect) => runAsyncEffect(asyncEffect))
-      // return (...args) => {
-      //   if (state !== 'init') throw new Error('awaitCallbacksInParallel has either already been resolved, or cancelled')
-      //   state = 'cancelled'
-      //   debugger
-      //   cancelQueue.queueInInsertionOrder.forEach(([, cancelCb]) => cancelCb(...args))
-      // }
-
+      asyncEffects.forEach((asyncEffect, i) => runAsyncEffect(asyncEffect, i))
       return asyncEffectsInParallelController
     },
-    then: (onfulfilled?, onrejected?) => {},
+    promise() {
+      return new Promise((resolve, reject) => {
+        aEffectsInParallel.await(resolve, reject)
+      })
+    },
   }
 
-  return asyncEffectsInParallel
+  return aEffectsInParallel
 }
-export default callbacksInParallel
+
+export function asyncEffectsInParallelShort<
+  AsyncEffects extends [
+    asyncEffect: AsyncEffect<unknown[], unknown[] | undefined, unknown>,
+    ...asyncEffects: AsyncEffect<unknown[], unknown[] | undefined, unknown>[],
+  ],
+  ResultsArray extends unknown[] = AsyncEffectsParamArray<AsyncEffects, 0>,
+  ErrorsArray extends unknown[] = AsyncEffectsParamArray<AsyncEffects, 1>,
+>(
+  asyncEffects: AsyncEffects,
+  resultCb: (resultsArray: ResultsArray) => void,
+  errorCb?: (errorsArray: ErrorsArray, resultsArray: ResultsArray) => void,
+) {
+  const a = asyncEffectsInParallel<AsyncEffects, ResultsArray, ErrorsArray>(...asyncEffects)
+  return a.await(resultCb, errorCb)
+}
+export default asyncEffectsInParallel

@@ -1,94 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-types */
 /* eslint-disable @typescript-eslint/prefer-as-const */
 import { vi, describe, it, expect, Mock } from 'vitest'
 
-// import outputPins, {
-//   resultErrorOutputPins,
-//   resultNoneOutputPins,
-//   resultOutputPins,
-// } from '../src/outputPins'
-
-// describe('outputPins', () => {
-//   it('basic', () => {
-//     // debugger
-//     const pins1 = resultErrorOutputPins<string, number, (sArg: string) => boolean>()
-//     // debugger
-//     expect(pins1.pinReturned).toEqual(undefined)
-//     const x1 = pins1('a')
-//     expect(pins1.pinReturned).toEqual('result')
-//     expect(pins1.getResult()).toEqual('a')
-//     expect(pins1.value).toEqual('a')
-//     expect(() => {
-//       pins1.error(1)
-//     }).toThrowError(`only one outputPin can be set and the 'result' pin already contains 'a'`)
-//     // debugger
-//     const pins2 = resultErrorOutputPins<string, string>()
-//     // debugger
-//     pins2.error('THROWN')
-//     expect(pins2.pinReturned).toEqual('error')
-//     expect(pins2.getError()).toEqual('THROWN')
-
-//     expect(() => {
-//       pins2.result('A')
-//     }).toThrowError(`only one outputPin can be set and the 'error' pin already contains 'THROWN'`)
-
-//     const pins3 = resultErrorOutputPins<string, string>()
-//     expect(() => {
-//       console.log(pins3.getResult())
-//     }).toThrowError(`pin 'result' not set`)
-//     expect(() => {
-//       console.log(pins3.getError())
-//     }).toThrowError(`pin 'error' not set`)
-//   })
-//   it('undefined test', () => {
-//     // debugger
-//     const pins1 = resultNoneOutputPins<string, null>()
-//     // debugger
-//     pins1.none(null)
-//     expect(pins1.pinReturned).toEqual('none')
-//     expect(pins1.getNone()).toEqual(null)
-//     expect(pins1.value).toEqual(null)
-//     const pins2 = resultNoneOutputPins<string, undefined>()
-//     // debugger
-//     pins2.none(undefined)
-//     expect(pins2.pinReturned).toEqual('none')
-//     expect(pins2.getNone()).toEqual(undefined)
-//   })
-//   it('fn chaining', () => {
-//     debugger
-//     const pins1 = resultOutputPins<string, (sArg: string) => boolean>()
-//     const fn = vi.fn((result) => {
-//       debugger
-//       console.log(result)
-//       expect(result).toEqual('a')
-//       return true
-//     })
-//     const x = pins1('a')(fn)
-
-//     expect(fn).toHaveBeenCalled()
-//     expect(x).toEqual(true)
-//   })
-//   it.only('fn chaining2', () => {
-//     debugger
-//     const chain = resultOutputPins()
-//       .then((a, cb) => cb(`A:${a}`))
-//       .then((a, cb) => setTimeout(() => cb(`B:${a}`), 100))
-//       .then((a, cb) => cb(`C:${a}`))
-//       // .onError(fnD)
-//       .input('a')
-//     debugger
-//     console.log(chain)
-
-//     // fnA.onResult((result) => {
-//     //   debugger
-//     //   console.log(result)
-//     // })
-//     // fnA('B')
-//   })
-// })
-
-import chain, { AwaitedChainNodeController, ErrorCb } from '../src/scratch.js'
-import type { PinsA, ChainNode } from '../src/scratch.js'
+import chain, { AwaitedChainController, ErrorCb } from '../src/chain.js'
+import type { ResolverA, ChainNode } from '../src/chain.js'
 import { times } from '../src/smallUtils.js'
 
 type StrictEqual<A1, A2> = [A1] extends [A2] ? ([A2] extends [A1] ? true : false) : false
@@ -127,8 +43,7 @@ const autoResolvers = () => {
     return matcher
   }
   const createChainSegment = <T extends unknown[]>(chainValues: T, chainy: any) =>
-    chainValues.reduce<ChainNode<any, any, any, any>>((previousValue, currentValue, index) => {
-      // debugger
+    chainValues.reduce<ChainNode<any, any>>((previousValue, currentValue, index) => {
       if (index === 0) return previousValue
       const res = resultResolver(chainValues[index - 1], currentValue)
       return previousValue(res)
@@ -157,9 +72,10 @@ describe('chain', () => {
       }
     >((x, resolve) => {
       typesMatch<'RI', typeof x>(true)
-      typesMatch<PinsA<'ErrorN1', 'OutputN1', 'ResResolverN1', 'ErrResolverN1'>, typeof resolve>(
-        true,
-      )
+      typesMatch<
+        ResolverA<'ErrorN1', 'OutputN1', 'ResResolverN1', 'ErrResolverN1'>,
+        typeof resolve
+      >(true)
       const t = resolve('OutputN1')
       typesMatch<'ResResolverN1', typeof t>(true)
       return 'chn1a' as 'ResResolverN0'
@@ -172,7 +88,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN1', typeof x>(true)
       typesMatch<
-        PinsA<'ErrorN2', 'OutputN2', 'ResResolverN2', 'ErrResolverN1' | 'ErrResolverN2'>,
+        ResolverA<'ErrorN2', 'OutputN2', 'ResResolverN2', 'ErrResolverN1' | 'ErrResolverN2'>,
         typeof resolve
       >(true)
       const t = resolve('OutputN2')
@@ -187,7 +103,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN2', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN3',
           'OutputN3',
           'ResResolverN3',
@@ -207,7 +123,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN3', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN4',
           'OutputN4',
           'ResResolverN4',
@@ -227,7 +143,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN4', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN5',
           'OutputN5',
           'ResResolverN5',
@@ -247,7 +163,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN5', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN6',
           'OutputN6',
           'ResResolverN6',
@@ -272,7 +188,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN6', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN7',
           'OutputN7',
           'ResResolverN7',
@@ -298,7 +214,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN7', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN8',
           'OutputN8',
           'ResResolverN8',
@@ -325,7 +241,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN8', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN9',
           'OutputN9',
           'ResResolverN9',
@@ -353,7 +269,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN9', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN10',
           'OutputN10',
           'ResResolverN10',
@@ -382,7 +298,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN10', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN11',
           'OutputN11',
           'ResResolverN11',
@@ -412,7 +328,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN11', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN12',
           'OutputN12',
           'ResResolverN12',
@@ -443,7 +359,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN12', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN13',
           'OutputN13',
           'ResResolverN13',
@@ -475,7 +391,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN13', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN14',
           'OutputN14',
           'ResResolverN14',
@@ -508,7 +424,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN14', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN15',
           'OutputN15',
           'ResResolverN15',
@@ -542,7 +458,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN15', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN16',
           'OutputN16',
           'ResResolverN16',
@@ -577,7 +493,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN16', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN17',
           'OutputN17',
           'ResResolverN17',
@@ -613,7 +529,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN17', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN18',
           'OutputN18',
           'ResResolverN18',
@@ -650,7 +566,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN18', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN19',
           'OutputN19',
           'ResResolverN19',
@@ -688,7 +604,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN19', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN20',
           'OutputN20',
           'ResResolverN20',
@@ -727,7 +643,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN20', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN21',
           'OutputN21',
           'ResResolverN21',
@@ -767,7 +683,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN21', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN22',
           'OutputN22',
           'ResResolverN22',
@@ -808,7 +724,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN22', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN23',
           'OutputN23',
           'ResResolverN23',
@@ -850,7 +766,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN23', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN24',
           'OutputN24',
           'ResResolverN24',
@@ -893,7 +809,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN24', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN25',
           'OutputN25',
           'ResResolverN25',
@@ -937,7 +853,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN25', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN26',
           'OutputN26',
           'ResResolverN26',
@@ -982,7 +898,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN26', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN27',
           'OutputN27',
           'ResResolverN27',
@@ -1028,7 +944,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN27', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN28',
           'OutputN28',
           'ResResolverN28',
@@ -1075,7 +991,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN28', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN29',
           'OutputN29',
           'ResResolverN29',
@@ -1123,7 +1039,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN29', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN30',
           'OutputN30',
           'ResResolverN30',
@@ -1172,7 +1088,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN30', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN31',
           'OutputN31',
           'ResResolverN31',
@@ -1222,7 +1138,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN31', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN32',
           'OutputN32',
           'ResResolverN32',
@@ -1273,7 +1189,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN32', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN33',
           'OutputN33',
           'ResResolverN33',
@@ -1325,7 +1241,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN33', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN34',
           'OutputN34',
           'ResResolverN34',
@@ -1378,7 +1294,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN34', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN35',
           'OutputN35',
           'ResResolverN35',
@@ -1432,7 +1348,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN35', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN36',
           'OutputN36',
           'ResResolverN36',
@@ -1487,7 +1403,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN36', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN37',
           'OutputN37',
           'ResResolverN37',
@@ -1543,7 +1459,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN37', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN38',
           'OutputN38',
           'ResResolverN38',
@@ -1600,7 +1516,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN38', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN39',
           'OutputN39',
           'ResResolverN39',
@@ -1658,7 +1574,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN39', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN40',
           'OutputN40',
           'ResResolverN40',
@@ -1717,7 +1633,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN40', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN41',
           'OutputN41',
           'ResResolverN41',
@@ -1769,6 +1685,7 @@ describe('chain', () => {
       typesMatch<'ResResolverN41', typeof t>(true)
       return 'chn1a' as 'ResResolverN40'
     })
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const chainN42 = chainN41<{
       Output: 'OutputN42'
       Error: 'ErrorN42'
@@ -1777,7 +1694,7 @@ describe('chain', () => {
     }>((x, resolve) => {
       typesMatch<'OutputN41', typeof x>(true)
       typesMatch<
-        PinsA<
+        ResolverA<
           'ErrorN42',
           'OutputN42',
           'ResResolverN42',
@@ -1909,6 +1826,24 @@ describe('chain', () => {
   //     return 'chn1a' as 'ResultResolverController'
   //   })
   // })
+  it.only('example usage', () =>
+    new Promise((done) => {
+      const fooChain = chain<
+        { Input: 'start' },
+        { Output: 'node 1' },
+        { ResultResolverController: void }
+      >((x, resolve) => {
+        expect(x).toEqual('start')
+        resolve('node 1')
+      })<{ Output: 'node 2' }>((x, resolve) => {
+        expect(x).toEqual('node 1')
+        resolve('node 2')
+      })
+      fooChain.await('start', (result) => {
+        expect(result).toEqual('node 2')
+        done(undefined)
+      })
+    }))
   it('basic', () =>
     new Promise((done) => {
       const chainy = chain<{}, {}, { InputOutput: string; ResultResolverController: void }>(
@@ -1923,7 +1858,7 @@ describe('chain', () => {
       chainy.await(
         'start',
         (result) => {
-          debugger
+          // debugger
           checkType<string>(result)
           expect(result).toEqual('done')
           done(undefined)
@@ -2012,7 +1947,7 @@ describe('chain', () => {
           arg: string,
           resultCb: (result: boolean) => void,
           errorCb: ErrorCb<boolean, number | boolean, void, void>,
-        ) => AwaitedChainNodeController<void>,
+        ) => AwaitedChainController<void>,
         typeof b.await
       >(true)
 
@@ -2082,13 +2017,13 @@ describe('chain', () => {
       )
     }))
 
-  it('s', () =>
+  it('sync', () =>
     new Promise((done) => {
       const { matches } = autoResolvers()
       const chainy = chain<{}, {}, { InputOutput: string; ResultResolverController: void }>(
         (x, resolve) => resolve(`a:${x}`),
       )
-      const a = chainy.s((x) => `b:${x}`)((x, resolve) => resolve(`c:${x}`))
+      const a = chainy.sync((x) => `b:${x}`)((x, resolve) => resolve(`c:${x}`))
       a.await('1', matches('c:b:a:1'), doNotCall)
       a.await('2', matches('c:b:a:2', done), doNotCall)
     }))
@@ -2158,7 +2093,7 @@ describe('chain', () => {
     }))
   it('return types', () =>
     new Promise((done) => {
-      let controller: AwaitedChainNodeController<'cancelA' | 'cancelB' | 'cancelD' | 'done'>
+      let controller: AwaitedChainController<'cancelA' | 'cancelB' | 'cancelD' | 'done'>
       const chainy = chain<
         {
           ResultResolverController: 'cancelA'
@@ -2172,7 +2107,7 @@ describe('chain', () => {
         { InputOutput: string }
       >((x, resolve) => {
         setTimeout(() => {
-          debugger
+          // debugger
           expect(controller.controller).toEqual('cancelA')
           const t = resolve(`a:${x}`) // 'b'
           // const e = resolve.error('A')
@@ -2184,7 +2119,7 @@ describe('chain', () => {
       const b = chainy<{ Output: string; Error: 'errorB'; ErrorResolverController: 'errorCR' }>(
         (x, resolve) => {
           setTimeout(() => {
-            debugger
+            // debugger
             expect(controller.controller).toEqual('cancelB')
             const t = resolve(`b:${x}`) // 'done'
             // const e = resolve.error('A')
@@ -2195,9 +2130,9 @@ describe('chain', () => {
           return 'cancelB'
         },
       )
-      const c = b.s<{ Output: string; Error: 'errorC'; ResultResolverController: 'cancelD' }>(
-        (x) => {
-          debugger
+      const c = b.sync<{ Output: string; Error: 'errorC'; ResultResolverController: 'cancelD' }>(
+        () => {
+          // debugger
           expect(controller.controller).toEqual(undefined)
           return 'cancelC'
         },
@@ -2205,7 +2140,7 @@ describe('chain', () => {
       const d = c<{ Output: string; Error: 'errorD'; ResultResolverController: 'done' }>(
         (x, resolve) => {
           setTimeout(() => {
-            debugger
+            // debugger
             expect(controller.controller).toEqual('cancelD')
             const t = resolve(`d:${x}`) // 'done'
             typesMatch<'done', typeof t>(true)
@@ -2218,22 +2153,169 @@ describe('chain', () => {
 
       const controllerA = d.await(
         '1',
-        (_result) => {
-          debugger
+        () => {
+          // debugger
           expect(controller.controller).toEqual(undefined)
           return 'done'
         },
         (_error) => _error as unknown as 'errorAR' | 'errorBR' | 'errorCR',
       )
-      debugger
+      // debugger
       typesMatch<
-        AwaitedChainNodeController<'cancelA' | 'cancelB' | 'cancelD' | 'done'>,
+        AwaitedChainController<'cancelA' | 'cancelB' | 'cancelD' | 'done'>,
         typeof controllerA
       >(true)
       controller = controllerA
       expect(controller.controller).toEqual('cancelA')
     }))
+  it('splicing chains', () =>
+    new Promise((done) => {
+      const chainA = chain<
+        {},
+        {},
+        {
+          InputOutput: string
+          ResultResolverController: void
+        }
+      >((x, resolve) => resolve(`A:${x}`))((x, resolve) => resolve(`B:${x}`))
+
+      const chainB = chainA.splice(chainA)((x, resolve) => resolve(`C:${x}`))
+
+      chainB.await(
+        'Start',
+        (result) => {
+          // debugger
+          expect(result).toEqual('C:B:A:B:A:Start')
+          done(undefined)
+        },
+        doNotCall,
+      )
+    }))
+
+  it('transformed into a promise', () =>
+    // eslint-disable-next-line no-async-promise-executor
+    new Promise(async (done) => {
+      const chainA = chain<
+        {},
+        {},
+        {
+          InputOutput: string
+          ResultResolverController: void
+        }
+      >((x, resolve) => setTimeout(() => resolve(`A:${x}`), 100))((x, resolve) => resolve(`B:${x}`))
+      const z = await chainA.input('Start')
+      expect(z).toEqual('B:A:Start')
+      done(undefined)
+    }))
+
+  it('benchmark', () =>
+    new Promise((done) => {
+      const max = 1000
+
+      const benchAsyncEffectsInParallel = (promsiseLapse: number) => {
+        const t1 = Date.now()
+        let chainy = chain<
+          {},
+          {},
+          {
+            InputOutput: number
+            ResultResolverController: void
+          }
+        >((result, resolver) => resolver(result + 1))
+        times(max - 1, (i) => {
+          chainy = chainy((result, resolver) => setImmediate(() => resolver(result + 1)))
+        })
+        const t2 = Date.now()
+        chainy.await(0, (_res) => {
+          const t3 = Date.now()
+          console.log(`
+          asyncEffectsInParallel:
+          t1: ${t1}
+          t2: ${t2}, lapsed ${t2 - t1}
+          t3: ${t3}, lapsed ${t3 - t2}
+          total lapsed ${t3 - t1}
+          factor: ${promsiseLapse / (t3 - t1)} times faster
+          `)
+          done(undefined)
+        })
+      }
+
+      const benchPromiseAll = () => {
+        const t1 = Date.now()
+        // eslint-disable-next-line no-promise-executor-return
+        const nPms = (x) => new Promise<number>((resolve) => setImmediate(() => resolve(x)))
+
+        const tPms = (pms) =>
+          pms.then((result) => {
+            if (result < max) tPms(nPms(result + 1))
+            else {
+              const t2 = Date.now()
+              console.log(`Promises:
+            t1: ${t1}
+            t2: ${t2}, lapsed ${t2 - t1}
+            total lapsed ${t2 - t1}
+            `)
+              benchAsyncEffectsInParallel(t2 - t1)
+            }
+          })
+        tPms(nPms(0))
+      }
+
+      // const benchPromiseAll = async () => {
+      //   const results2 = new Array<Promise<number>>(max)
+      //   const t1 = Date.now()
+      //   let i = 0
+      //   times(max, () => {
+      //     results2[i] = new Promise<number>((resolve) => {
+      //       // debugger
+      //       i += 1
+      //       const y = i
+      //       setImmediate(() => resolve(y))
+      //     })
+      //   })
+      //   let res = 0
+      //   // eslint-disable-next-line no-restricted-syntax
+      //   for (const pms of results2) {
+      //     // debugger
+      //     res = await pms
+      //   }
+      //   console.log(res)
+      //   const t2 = Date.now()
+      //   // debugger
+      //   console.log(`Promises:
+      //   t1: ${t1}
+      //   t2: ${t2}, lapsed ${t2 - t1}
+      //   total lapsed ${t2 - t1}
+      //   `)
+      //   benchAsyncEffectsInParallel(t2 - t1)
+      // }
+
+      benchPromiseAll()
+    }))
 })
+
+// (
+//   input: string,
+//   resultCb: ChainNodeResultCb<{ Error: never; ResultResolverController: void; ErrorResolverController: never; Output: string; }>,
+//   errorCb: AccumulatedErrorCb<{ AccumulatedErrors: never; AccumulatedOutputs: string; AccumulatedResultResolverControllers: void; AccumulatedErrorResolverControllers: never; }>
+// ) => AwaitedChainNodeController<void>
+
+// ChainNodeAsyncFn<{
+//   Error: never;
+//   ResultResolverController: void;
+//   ErrorResolverController: never;
+//   Output: string;
+// }, {
+//   Error: never;
+//   ResultResolverController: void;
+//   ErrorResolverController: never;
+//   Output: string;
+// }, {
+//   AccumulatedErrors: never;
+//   AccumulatedOutputs: string;
+//   AccumulatedResultResolverControllers: void;
+//   AccumulatedErrorResolverControllers: never;
+// }>'.
 
 // const chain = asyncMapChain(getFile, splitFile, searchOnline, consolidateResults, formatResults)
 

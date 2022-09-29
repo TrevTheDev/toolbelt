@@ -32,22 +32,32 @@ export type JustSignatures<T> = T extends {
  * type U = Union<{a: number}, {b: string}>     // {a: number, b: string}
  * type U = Union<{ a: number }, { a: string }> // {a: string}
  */
-export type Union<T1, T2> = {
-  [k in keyof T2 | keyof T1]: k extends keyof T2 ? T2[k] : k extends keyof T1 ? T1[k] : never
-} extends infer O
-  ? { [K in keyof O]: O[K] }
-  : never
+export type Union<
+  T1,
+  T2,
+  R = {
+    [k in keyof T2 | keyof T1]: k extends keyof T2 ? T2[k] : k extends keyof T1 ? T1[k] : never
+  },
+> = R
 /**
  * Overwrites any properties in T1, that are also in T2
  * @example
  * type U = LMerge<{ a: number }, { b: string }> // {a: number}
  * type U = LMerge<{ a: number; c: boolean }, { a: string; b: number }> // {a: string, c:boolean}
  */
-export type LMerge<T1, T2> = {
-  [k in keyof T1]: k extends keyof T2 ? T2[k] : T1[k]
-} extends infer O
-  ? { [K in keyof O]: O[K] }
-  : never
+// export type LMerge<T1, T2> = {
+//   [k in keyof T1]: k extends keyof T2 ? T2[k] : T1[k]
+// } extends infer O
+//   ? { [K in keyof O]: O[K] }
+//   : never
+
+export type LMerge<
+  T1,
+  T2,
+  R = {
+    [k in keyof T1]: k extends keyof T2 ? T2[k] : T1[k]
+  },
+> = R
 
 /**
  * Renames a property in a type object.
@@ -313,6 +323,20 @@ export type UnionToTuple<T, L = LastOf<T>, N = [T] extends [never] ? true : fals
   : Push<UnionToTuple<Exclude<T, L>>, L>
 
 /**
+ * removes the `readonly` attribute from an array type, and returns Type
+ * @example
+ * type R = RemoveReadOnlyFromArray<readonly [string, string, string], string[]> // [string, string, string]
+ * type R = RemoveReadOnlyFromArray<readonly string[], any[]>    // string[]
+ * type R = RemoveReadOnlyFromArray<readonly any[], string[]>    // any[]
+ * type R = RemoveReadOnlyFromArray<readonly number[], string[]> // never
+ */
+export type RemoveReadOnlyFromArray<
+  T extends readonly any[],
+  Type extends any[] = any[],
+  Unwrapped = { -readonly [K in keyof T]: T[K] },
+> = Unwrapped extends Type ? Unwrapped : never
+
+/**
  * Whether two function? types are equal -don't understand this
  * @example
  * type E = StrictEqual<string, string> // true
@@ -380,9 +404,17 @@ export function narrowingAssert<T>(toBeAsserted: any): asserts toBeAsserted is T
 // type zzzz2 = any extends unknown ? true : false // true
 // type zzzz3 = any extends string ? true : false // true
 
+/**
+ * Tests whether a type is finite
+ *
+ * type Foo1 = IsFinite<[string], 'yes', 'no'>                          // 'yes'
+ * type Foo2 = IsFinite<[], 'yes', 'no'>                                // 'yes'
+ *type Foo3 = IsFinite<string[], 'yes', 'no'>                          // 'no'
+type Foo4 = IsFinite<[arg1: string, ...args: string[]], 'yes', 'no'> // 'no'
+ */
 export type IsFinite<Tuple extends any[], Finite, Infinite> = {
   empty: Finite
-  nonEmpty: ((..._: Tuple) => any) extends (_: any, ..._1: infer Rest) => any
+  nonEmpty: [...args: Tuple] extends [arg: any, ...args: infer Rest]
     ? IsFinite<Rest, Finite, Infinite>
     : never
   infinite: Infinite
@@ -393,6 +425,11 @@ export type IsFinite<Tuple extends any[], Finite, Infinite> = {
     ? 'infinite'
     : 'nonEmpty'
   : never]
+
+type Foo1 = IsFinite<[string], 'yes', 'no'> // 'yes'
+type Foo2 = IsFinite<[], 'yes', 'no'> // 'yes'
+type Foo3 = IsFinite<string[], 'yes', 'no'> // 'no'
+type Foo4 = IsFinite<[arg1: string, ...args: string[]], 'yes', 'no'> // 'no'
 
 export type Prepend<Tuple extends any[], NewHead extends any[]> = [
   ...newHead: NewHead,

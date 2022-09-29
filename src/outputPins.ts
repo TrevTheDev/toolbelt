@@ -1,5 +1,4 @@
-import { resolve } from 'path'
-import { capitalise, curriedRunFunctionsOnlyOnce, callbackTee, methodOnlyOnce } from './smallUtils'
+import { capitalise, curriedRunFunctionsOnlyOnce, methodOnlyOnce } from './smallUtils'
 import { ConcatTupleOfTuples, Head, TupleToUnion, Union } from './typescript utils'
 
 export type PinDef = [pinName: string, pinType: [arg: unknown]]

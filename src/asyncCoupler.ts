@@ -1,26 +1,38 @@
 /* eslint-disable no-bitwise */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { queue } from '.'
+import { enhancedMap } from '.'
+import type { EnhancedMap } from '.'
+import { Union } from './typescript utils'
 
-import type { Queue } from '.'
+type AnyCallback = (...args: never[]) => void
+type IncomingCallback<T extends AnyCallback> = T
+type OutgoingCallback<T extends AnyCallback> = (incomingCallback: IncomingCallback<T>) => void
 
-type IncomingCallback = (...args: any[]) => any
-type OutgoingCallback = (incomingCallback: IncomingCallback) => void
+type AddOutgoingCallback<T extends AnyCallback> = (
+  outgoingCallback: OutgoingCallback<T>,
+  index?: number,
+) => void
+type AddIncomingCallback<T extends AnyCallback> = (
+  incomingCallback: IncomingCallback<T>,
+  index?: number,
+) => void
 
-type NamedOutgoingCallback<outgoingCallbackName extends string> = {
-  [key in outgoingCallbackName]: (outgoingCallback: OutgoingCallback, index?: number) => void
-}
-type NamedIncomingCallback<incomingCallbackName extends string> = {
-  [key in incomingCallbackName]: (outgoingCallback: OutgoingCallback, index?: number) => void
-}
+export type AsyncCoupler<
+  OutgoingCallbackName extends string,
+  IncomingCallbackName extends string,
+  T extends AnyCallback,
+  U = {
+    [key in OutgoingCallbackName]: AddOutgoingCallback<T>
+  } & { [key in IncomingCallbackName]: AddIncomingCallback<T> } & {
+    readonly incomingCallbacks: EnhancedMap<IncomingCallback<T>>
+    readonly outgoingCallbacks: EnhancedMap<OutgoingCallback<T>>
+  },
+> = U extends infer O ? { [K in keyof O]: O[K] } : never
 
-type AsyncCouplerShared = {
-  readonly incomingCallbacks: Queue<IncomingCallback>
-  readonly outgoingCallbacks: Queue<OutgoingCallback>
-}
+type Z = AsyncCoupler<'A', 'B', (a: any) => any>
 
-const modifyAnyThrownErrors = (fn, modifiedErrorMsg) => {
+const modifyAnyThrownErrors = (fn: () => void, modifiedErrorMsg: string) => {
   try {
     fn()
   } catch (e) {
@@ -28,68 +40,85 @@ const modifyAnyThrownErrors = (fn, modifiedErrorMsg) => {
   }
 }
 
-// eslint-disable-next-line max-len
-export type AsyncCoupler<outgoingCallbackName extends string, incomingCallbackName extends string> = NamedOutgoingCallback<outgoingCallbackName> &
-  NamedIncomingCallback<incomingCallbackName> &
-  AsyncCouplerShared
-
-// export type AsyncCoupler<outgoingCallbackName extends string, incomingCallbackName extends string> = {
-//    [P in outgoingCallbackName | incomingCallbackName]: P extends incomingCallbackName
-//    ? (outgoingCallback: OutgoingCallback, index?: number) => void
-//    : (incomingCallback: IncomingCallback, index?: number) => void
-
-// }
-
 /**
- * Enables the coupling of two async callbacks: `incomingCallback` and `outgoingCallback`.
- * These callbacks may be added in any sequence.
+ * Enables the coupling of two async callbacks: `incomingCallback` and `outgoingCallback` - which can be renamed
+ * as require. The callbacks may be added in any sequence and are enqueued.
  * Once both callbacks have been added: `outgoingCallback(incomingCallback)` is called
- * An optional index is available if callbacks must be indexed and run sequentially
+ * optionally, instead of FIFO, a manual index my be specified causing callbacks to be made in index order
  *
- * If callbacks always arrive in the same order then there are simpler solutions than this one.
+ * Example:
+ * ```
+ * const coupler = customAsyncCoupler<'addA', 'addB', (result: number) => void>('addA', 'addB')
+ * coupler.addA((incomingCb) => incomingCb(1))
+ * coupler.addB((result) => {
+ *   console.log(`result: ${result}`) // result: 1
+ * })
+ * ```
+ *
+ * If callbacks always arrive in the same order then there are better solutions than this one.
+ * @param {string} outgoingCallbackName
+ * @param {string} incomingCallbackName
+ * @param {boolean} indexed
+ * @returns
  */
-export function asyncCoupler<OutgoingCallbackName extends string, IncomingCallbackName extends string>(
-  outgoingCallbackName: OutgoingCallbackName = 'addOutgoingCallback' as OutgoingCallbackName,
-  incomingCallbackName: IncomingCallbackName = 'addIncomingCallback' as IncomingCallbackName,
-  indexed = false,
-): AsyncCoupler<OutgoingCallbackName, IncomingCallbackName> {
-  const incomingCallbacks = queue<IncomingCallback>()
-  const outgoingCallbacks = queue<OutgoingCallback>()
+export function asyncCoupler<
+  OutgoingCallbackName extends string,
+  IncomingCallbackName extends string,
+  T extends AnyCallback,
+>(
+  outgoingCallbackName: OutgoingCallbackName,
+  incomingCallbackName: IncomingCallbackName,
+  indexed?: boolean,
+) {
+  const incomingCallbacks = enhancedMap<IncomingCallback<T>>()
+  const outgoingCallbacks = enhancedMap<OutgoingCallback<T>>()
   let currentIdx = 1
   const makeNextCallback = () => {
-    const outgoingCallback = outgoingCallbacks.queue[currentIdx]
-    const incomingCallback = incomingCallbacks.queue[currentIdx]
+    const outgoingCallback = outgoingCallbacks.get(currentIdx)
+    const incomingCallback = incomingCallbacks.get(currentIdx)
     if (outgoingCallback && incomingCallback) {
-      incomingCallbacks.remove(currentIdx)
-      outgoingCallbacks.remove(currentIdx)
+      incomingCallbacks.delete(currentIdx)
+      outgoingCallbacks.delete(currentIdx)
       currentIdx += 1
       outgoingCallback(incomingCallback)
       makeNextCallback()
     }
   }
-  const addOutgoingCallback = (outgoingCallback: OutgoingCallback, index = 1) => {
-    const incomingCallback = incomingCallbacks.queue[currentIdx]
+  const addOutgoingCallback: AddOutgoingCallback<T> = (
+    outgoingCallback: OutgoingCallback<T>,
+    index = 1,
+  ) => {
+    const incomingCallback = incomingCallbacks.get(currentIdx)
     if (incomingCallback) {
-      incomingCallbacks.remove(currentIdx)
+      incomingCallbacks.delete(currentIdx)
       if (indexed && index <= currentIdx) throw new Error(`index: ${index} already processed`)
       if (indexed) currentIdx += 1
       outgoingCallback(incomingCallback)
       if (indexed) makeNextCallback()
     } else {
-      modifyAnyThrownErrors(() => outgoingCallbacks.add(outgoingCallback, index), 'outgoingCallback already added')
+      modifyAnyThrownErrors(
+        () => outgoingCallbacks.add(outgoingCallback, index),
+        'outgoingCallback already added',
+      )
     }
   }
 
-  const addIncomingCallback = (incomingCallback: IncomingCallback, index = 1) => {
-    const outgoingCallback = outgoingCallbacks.queue[currentIdx]
+  const addIncomingCallback: AddIncomingCallback<T> = (
+    incomingCallback: IncomingCallback<T>,
+    index = 1,
+  ) => {
+    const outgoingCallback = outgoingCallbacks.get(currentIdx)
     if (outgoingCallback) {
-      outgoingCallbacks.remove(currentIdx)
+      outgoingCallbacks.delete(currentIdx)
       if (indexed && index <= currentIdx) throw new Error(`index: ${index} already processed`)
       if (indexed) currentIdx += 1
       outgoingCallback(incomingCallback)
       if (indexed) makeNextCallback()
     } else {
-      modifyAnyThrownErrors(() => incomingCallbacks.add(incomingCallback, index), 'incomingCallback already added')
+      modifyAnyThrownErrors(
+        () => incomingCallbacks.add(incomingCallback, index),
+        'incomingCallback already added',
+      )
     }
   }
   return {
@@ -97,9 +126,14 @@ export function asyncCoupler<OutgoingCallbackName extends string, IncomingCallba
     [incomingCallbackName]: addIncomingCallback,
     incomingCallbacks,
     outgoingCallbacks,
-  } as AsyncCoupler<OutgoingCallbackName, IncomingCallbackName>
+  } as unknown as AsyncCoupler<OutgoingCallbackName, IncomingCallbackName, T>
 }
 
-const defaultAsyncCoupler = (indexed?: boolean) => asyncCoupler('addOutgoingCallback', 'addIncomingCallback', indexed)
+const defaultAsyncCoupler = <T extends AnyCallback>(indexed?: boolean) =>
+  asyncCoupler<'addOutgoingCallback', 'addIncomingCallback', T>(
+    'addOutgoingCallback',
+    'addIncomingCallback',
+    indexed,
+  )
 
 export default defaultAsyncCoupler
