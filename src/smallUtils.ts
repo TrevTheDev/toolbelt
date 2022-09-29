@@ -1,5 +1,8 @@
+<<<<<<< HEAD
 import { enhancedMap } from '.'
 
+=======
+>>>>>>> e6cf7cefdda7aa9b13f99597704323b0bef9fa60
 export const createUid = (length = 20): string =>
   Array.from({ length }, () => Math.random().toString(36)[2]).join('')
 
