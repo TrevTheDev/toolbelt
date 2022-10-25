@@ -1,5 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+export type UnknownObject = Record<keyof any, unknown>
+export type AnyKey = keyof any
+export type Fn<
+  InputArgs extends unknown[] = any[],
+  ReturnedType = any,
+  Res = (...args: InputArgs) => ReturnedType,
+> = Res
+
+/**
+ * Used to ensure type matches `T1 extends T2 ? T1 : Else`
+ */
+export type Extends<T1, T2, Else = never> = T1 extends T2 ? T1 : Else
+
 /**
  * extracts the call signatures from a type
  * Gotcha: doesn't yet work for no parameter call signatures and only 4 overloads
@@ -31,30 +44,35 @@ export type JustSignatures<T> = T extends {
  * @example
  * type U = Union<{a: number}, {b: string}>     // {a: number, b: string}
  * type U = Union<{ a: number }, { a: string }> // {a: string}
+ * type U = Union<{ a: 'a1'; b: 'b1'; c: 'c1' }, { a: 'a2', c: 'c2', d: 'd2' }> // { a: "a2"; c: "c2"; d: "d2"; b: "b1"; }
  */
 export type Union<
-  T1,
-  T2,
-  R = {
-    [k in keyof T2 | keyof T1]: k extends keyof T2 ? T2[k] : k extends keyof T1 ? T1[k] : never
+  T1 extends UnknownObject,
+  T2 extends UnknownObject,
+  R extends UnknownObject = {
+    [K in keyof T2 | keyof T1]: K extends keyof T2 ? T2[K] : K extends keyof T1 ? T1[K] : never
   },
 > = R
+
+/**
+ * returns a union of all keys that match the criteria
+ * @example
+ * type Foo1 = KeysMatching<{a: string, b: undefined, c: undefined, d: number}, undefined> // 'b'|'c'
+ */
+export type KeysMatching<T extends UnknownObject, Criteria> = {
+  [K in keyof T]-?: T[K] extends Criteria ? K : never
+}[keyof T]
+
 /**
  * Overwrites any properties in T1, that are also in T2
  * @example
  * type U = LMerge<{ a: number }, { b: string }> // {a: number}
  * type U = LMerge<{ a: number; c: boolean }, { a: string; b: number }> // {a: string, c:boolean}
  */
-// export type LMerge<T1, T2> = {
-//   [k in keyof T1]: k extends keyof T2 ? T2[k] : T1[k]
-// } extends infer O
-//   ? { [K in keyof O]: O[K] }
-//   : never
-
 export type LMerge<
-  T1,
-  T2,
-  R = {
+  T1 extends UnknownObject,
+  T2 extends UnknownObject,
+  R extends UnknownObject = {
     [k in keyof T1]: k extends keyof T2 ? T2[k] : T1[k]
   },
 > = R
@@ -64,8 +82,8 @@ export type LMerge<
  * @example
  * type U = RenameProperty<{ a: number; c?: boolean; d?: string }, 'c', 'b'> // { a: number,  b?: boolean, d?: string }
  */
-export type RenameProperty<T, K extends keyof T, N extends string> = {
-  [P in keyof T as P extends K ? N : P]: T[P]
+export type RenameProperty<T, OldPropertyName extends keyof T, NewPropertyName extends string> = {
+  [P in keyof T as P extends OldPropertyName ? NewPropertyName : P]: T[P]
 } extends infer O
   ? { [Key in keyof O]: O[Key] }
   : never
@@ -107,7 +125,7 @@ export type Lookup<T, K extends keyof any, Else = never> = K extends keyof T ? T
 /**
  * Tests if T is strictly `any` else returns never
  */
-export type IsStrictAny<T> = 0 extends 1 & T ? T : never
+export type IsStrictAny<T, Else = never> = 0 extends 1 & T ? T : Else
 
 type IsNotStrictAny<T> = T extends IsStrictAny<T> ? never : T
 type IsVoid<T> = T extends void ? T : never
@@ -240,9 +258,9 @@ export type CleanArray<T extends any[]> = Omit<T, keyof any[]>
 export type TupleToObject<T extends [string, any]> = { [key in T[0]]: Extract<T, [key, any]>[1] }
 
 /**
- * concatenates a tuple of tuples
+ * concatenates a tuple of tuples.  Flatmap?
  * @example
- * type T = ConcatTupleOfTuples<[[a: string, c: number], [c: `STRING`], [e: `BLOWER`]]>  // [a: string, c: number, c: "STRING", e: "BLOWER"]
+ * type T = ConcatTupleOfTuples<[[a: 'a', c: 'c1'], [c: `c2`], [d: `d`]]>  // [a: "a", c: "c1", c: "c2", d: "d"]
  */
 export type ConcatTupleOfTuples<
   Tuple extends unknown[],
@@ -252,7 +270,12 @@ export type ConcatTupleOfTuples<
   _N extends unknown[] = [..._ConcatedTuple, ..._H],
 > = _T extends [any, ...any] ? ConcatTupleOfTuples<_T, _N> : _N
 
-type UnionToIntersection<U> = (U extends any ? (arg0: U) => void : never) extends (
+/**
+ * Converts a Union type (|) to an Intersection of the union (&)
+ * @example
+ * type U = UnionToIntersection< (() => void) | ((p: string) => void)> // (() => void) & ((p: string) => void)
+ */
+export type UnionToIntersection<U> = (U extends any ? (arg0: U) => void : never) extends (
   arg0: infer I,
 ) => void
   ? I
@@ -318,9 +341,11 @@ type LastOf<T> = UnionToIntersection<T extends any ? () => T : never> extends ()
  * type U = UnionToTuple<"a" | string>    // [string] - gotcha
  * type U = UnionToTuple<boolean>         // [false, true] - gotcha
  */
-export type UnionToTuple<T, L = LastOf<T>, N = [T] extends [never] ? true : false> = true extends N
-  ? []
-  : Push<UnionToTuple<Exclude<T, L>>, L>
+export type UnionToTuple<
+  T,
+  L = LastOf<T>,
+  Res = [T] extends [never] ? [] : Push<UnionToTuple<Exclude<T, L>>, L>,
+> = Res
 
 /**
  * removes the `readonly` attribute from an array type, and returns Type
@@ -335,6 +360,68 @@ export type RemoveReadOnlyFromArray<
   Type extends any[] = any[],
   Unwrapped = { -readonly [K in keyof T]: T[K] },
 > = Unwrapped extends Type ? Unwrapped : never
+
+type FilterUndefined<T extends any[]> = T extends []
+  ? []
+  : T extends [infer H, ...infer R]
+  ? H extends undefined
+    ? FilterUndefined<R>
+    : [H, ...FilterUndefined<R>]
+  : T
+
+type UndefIndex<T extends any[], I extends number> = {
+  [P in keyof T]: P extends Exclude<keyof T, keyof any[]>
+    ? P extends `${I}`
+      ? undefined
+      : T[P]
+    : T[P]
+}
+
+/**
+ *
+ * type A = SpliceTuple<[1, 2, 3], 0> // [2,3]
+ * type B = SpliceTuple<[1, 2, 3], 1> // [1,3]
+ * type C = SpliceTuple<[1, 2, 3], 2> // [1,2]
+ * type D = SpliceTuple<[1, 2, 3], 3> // [ 1,2,3]
+ */
+export type SpliceTuple<T extends any[], I extends number> = FilterUndefined<UndefIndex<T, I>>
+
+type TupleSplitHead<T extends any[], N extends number> = T['length'] extends N
+  ? T
+  : T extends [...infer R, any]
+  ? TupleSplitHead<R, N>
+  : never
+
+type TupleSplitTail<T, N extends number, O extends any[] = []> = O['length'] extends N
+  ? T
+  : T extends [infer F, ...infer R]
+  ? TupleSplitTail<[...R], N, [...O, F]>
+  : never
+
+type TupleSplit<T extends any[], N extends number> = [TupleSplitHead<T, N>, TupleSplitTail<T, N>]
+
+type A = SpliceTuple<[1, 2, 3], 0> // [2,3]
+type B = TupleSplit<[a: 1, b: 2, c: 3, d: 4, e: 5], 2> // [1,3]
+type E = TupleSplit<[a: 1, b: 2, c: 3, d: 4, e: 5], 4> // [1,3]
+type C = SpliceTuple<[1, 2, 3], 2> // [1,2]
+type D = SpliceTuple<[1, 2, 3], 3> // [ 1,2,3]
+
+type TupleSplit3<
+  T extends any[],
+  N extends number,
+  HeadA extends any[] = [],
+  TailA extends any[] = [],
+  FinalHead extends any[] = never,
+  FinalTail extends any[] = never,
+  NewHead extends any[] = T extends [...infer R extends any[], any] ? R : never,
+  NewTail extends any[] = T extends [any, ...infer R extends any[]] ? R : never,
+> = {
+  headOnly: TupleSplit3<NewHead, N, NewHead, never, never, FinalTail>
+  both: TupleSplit3<NewHead, N, NewHead, NewTail, never, never>
+  tailOnly: TupleSplit3<NewHead, N, never, NewTail, FinalHead, never>
+  done: TupleSplit3<[], N, [], [], FinalHead, FinalTail>
+  result: [FinalHead, FinalTail]
+}[[FinalHead] extends [never] ? ([FinalTail] extends [never] ? 'both' : 'tailOnly') : 'result']
 
 /**
  * Whether two function? types are equal -don't understand this
@@ -406,11 +493,11 @@ export function narrowingAssert<T>(toBeAsserted: any): asserts toBeAsserted is T
 
 /**
  * Tests whether a type is finite
- *
+ * @example
  * type Foo1 = IsFinite<[string], 'yes', 'no'>                          // 'yes'
  * type Foo2 = IsFinite<[], 'yes', 'no'>                                // 'yes'
- *type Foo3 = IsFinite<string[], 'yes', 'no'>                          // 'no'
-type Foo4 = IsFinite<[arg1: string, ...args: string[]], 'yes', 'no'> // 'no'
+ * type Foo3 = IsFinite<string[], 'yes', 'no'>                          // 'no'
+ * type Foo4 = IsFinite<[arg1: string, ...args: string[]], 'yes', 'no'> // 'no'
  */
 export type IsFinite<Tuple extends any[], Finite, Infinite> = {
   empty: Finite
@@ -426,16 +513,24 @@ export type IsFinite<Tuple extends any[], Finite, Infinite> = {
     : 'nonEmpty'
   : never]
 
-type Foo1 = IsFinite<[string], 'yes', 'no'> // 'yes'
-type Foo2 = IsFinite<[], 'yes', 'no'> // 'yes'
-type Foo3 = IsFinite<string[], 'yes', 'no'> // 'no'
-type Foo4 = IsFinite<[arg1: string, ...args: string[]], 'yes', 'no'> // 'no'
+/** ***********************************************************************************************************************************************************************
+ * To delete?
+ * ************************************************************************************************************************************************************************
+ */
 
+/**
+ * Prepends item(s) to the front of a tuple
+ * @example
+ * type Foo1 = Prepend<['c','d'], ['a','b']>  // ["a", "b", "c", "d"]
+ */
 export type Prepend<Tuple extends any[], NewHead extends any[]> = [
   ...newHead: NewHead,
   ...tail: Tuple,
 ]
 
+/**
+ * type Foo1 = Reverse<['c','d'], ['a','b']>  // ["d", "c", "a", "b"]
+ */
 export type Reverse<Tuple extends any[], Prefix extends any[] = []> = {
   empty: Prefix
   nonEmpty: Tuple extends [infer First, ...infer Next]
@@ -447,6 +542,10 @@ export type Reverse<Tuple extends any[], Prefix extends any[] = []> = {
   }
 }[Tuple extends [any, ...any[]] ? IsFinite<Tuple, 'nonEmpty', 'infinite'> : 'empty']
 
+/**
+ * @example
+ * type Foo1 = Concat<[a: 'a', c: 'c1'], [c: `c2`, d:'d' ]> // ["a", "c1", "c2", "d"]
+ */
 export type Concat<Left extends any[], Right extends any[]> = {
   emptyLeft: Right
   singleLeft: Left extends [unknown] ? Prepend<Right, Left> : never
@@ -463,6 +562,9 @@ export type Concat<Left extends any[], Right extends any[]> = {
   ? 'singleLeft'
   : IsFinite<Left, 'multiLeft', 'infiniteLeft'>]
 
+/**
+ * Equivalent of [...Tuple1, ...Tuple2]
+ * @example
+ * type Foo1 = ConcatTuple<[a: 'a', c: 'c1'], [c: `c2`, d:'d' ]> // [a: "a", c: "c1", c: "c2", d: "d"]
+ */
 export type ConcatTuple<Tuple1 extends unknown[], Tuple2 extends unknown[]> = [...Tuple1, ...Tuple2]
-
-// type CC = ConcatTuple<[a: string, c: number], [c: `STING`]>

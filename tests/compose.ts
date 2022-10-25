@@ -9,7 +9,7 @@ const chainNode =
   }
 
 describe('compose', () => {
-  it.only('example', () => {
+  it('example', () => {
     const fn = compose(
       (a: string) => `${a}:A`,
       (a: string) => `${a}:B`,
@@ -32,5 +32,18 @@ describe('compose', () => {
     const x = chainNode('b' as const, 'done2' as const)
     const y3 = compose(y1, chainNode<'done', 'a'>('done', 'a'), chainNode<'a', 'b'>('a', 'b'), x)
     expect(y3('start' as const)).toEqual('done2')
+  })
+  it('chains', () => {
+    const y1 = compose(
+      chainNode('start' as const, 'Ra' as const),
+      chainNode('Ra' as const, 'Rb' as const),
+      chainNode('Rb' as const, 'Rc' as const),
+    )
+    const y2 = compose(
+      chainNode('Rc' as const, 'Rd' as const),
+      chainNode('Rd' as const, 'done' as const),
+    )
+    const y3 = compose(y1, y2)
+    expect(y3('start' as const)).toEqual('done')
   })
 })

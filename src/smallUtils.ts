@@ -1,8 +1,6 @@
-<<<<<<< HEAD
-import { enhancedMap } from '.'
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import enhancedMap from './enhancedMap'
 
-=======
->>>>>>> e6cf7cefdda7aa9b13f99597704323b0bef9fa60
 export const createUid = (length = 20): string =>
   Array.from({ length }, () => Math.random().toString(36)[2]).join('')
 
@@ -369,4 +367,59 @@ export function functionClass<
   }
 
   return fn
+}
+
+/**
+ * whether a property of `obj` is a getter.  prop is assumed to exist.
+ *
+ * @param obj
+ * @param prop
+ * @returns boolean
+ */
+export function isGetter<P extends PropertyKey, O extends { [Property in P]: any }>(
+  obj: O,
+  prop: P,
+): boolean {
+  return !!(Object.getOwnPropertyDescriptor(obj, prop) as PropertyDescriptor).get
+}
+/**
+ * whether a property of `obj` is a setter.  prop is assumed to exist.
+ *
+ * @param obj
+ * @param prop
+ * @returns boolean
+ */
+export function isSetter<P extends PropertyKey, O extends { [Property in P]: any }>(
+  obj: O,
+  prop: P,
+): boolean {
+  return !!(Object.getOwnPropertyDescriptor(obj, prop) as PropertyDescriptor).set
+}
+/**
+ * whether a property of `obj` is a value - i.e. a non-callable property.  prop is assumed to exist.
+ *
+ * @param obj
+ * @param prop
+ * @returns boolean
+ */
+export function isValue<P extends PropertyKey, O extends { [Property in P]: any }>(
+  obj: O,
+  prop: P,
+): boolean {
+  const x = (Object.getOwnPropertyDescriptor(obj, prop) as PropertyDescriptor).value
+  return x !== undefined && typeof x !== 'function'
+}
+/**
+ * whether a property of `obj` is a callable function.  prop is assumed to exist.
+ *
+ * @param obj
+ * @param prop
+ * @returns boolean
+ */
+export function isFunction<P extends PropertyKey, O extends { [Property in P]: any }>(
+  obj: O,
+  prop: P,
+): boolean {
+  const x = (Object.getOwnPropertyDescriptor(obj, prop) as PropertyDescriptor).value
+  return x !== undefined && typeof x === 'function'
 }

@@ -11,10 +11,10 @@ export type { EnhancedMap } from './enhancedMap'
 
 export { default as asyncMapChain2, awaitAsyncMapChain } from './asyncMapChain2'
 
-export {
-  default as asyncEffectsInParallel,
-  asyncEffectsInParallelShort as asyncEffectsInParallelS,
-} from './asyncEffectsInParallel'
+// export {
+//   default as asyncEffectsInParallel,
+//   asyncEffectsInParallelShort as asyncEffectsInParallelS,
+// } from './asyncEffectsInParallel'
 // export { default as serialCallbackChain } from './serialCallbackChain'
 // // export type {
 // //   AsyncMap, ResultCb, ErrorCb, CancelCb,
@@ -28,3 +28,7 @@ export type { AsyncCoupler } from './asyncCoupler'
 export { wrapAsyncMapInPromise, promiseTestObject } from './archive/wrapAsyncMapInPromise'
 
 export { default as compose } from './compose'
+
+export { difference, intersection } from './difference'
+
+export { addOnTop, addUnder, composedObjectsSuper } from './objectCompose'

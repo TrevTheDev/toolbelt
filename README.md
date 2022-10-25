@@ -14,7 +14,7 @@ An `await`ed chain returns an `AwaitedChainController` - which can be used to co
 import { chain } from '...'
 
 const fooChain = chain<
-	{ Input: 'start' },
+  { Input: 'start' },
   { Output: 'node 1' },
   { ResultResolverController: void }
 >((x, resolve) => {
