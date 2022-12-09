@@ -3,7 +3,10 @@
  * @param this - array
  * @param callbackFn  -(value: unknown, index: number, array: unknown[])
  */
-function reverseForEach(this: unknown[], callbackFn: (value: unknown, index: number, array: unknown[]) => void) {
+function reverseForEach(
+  this: unknown[],
+  callbackFn: (value: unknown, index: number, array: unknown[]) => void,
+) {
   let i: number
   const len = this.length - 1
   for (i = len; i >= 0; i -= 1) callbackFn(this[i], i, this)
@@ -20,5 +23,5 @@ declare global {
 
 if (!(globalReverseForEach in Array.prototype)) {
   // eslint-disable-next-line no-extend-native
-  Array.prototype[globalReverseForEach] = reverseForEach
+  ;(Array.prototype[globalReverseForEach] as unknown as any) = reverseForEach
 }

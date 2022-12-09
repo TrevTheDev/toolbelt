@@ -1,54 +1,47 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Lookup } from './typescript utils'
 
-type Fn<InputType = any, ReturnedType = any, Res = (input: InputType) => ReturnedType> = Res
+export type Fn<InputType = any, ReturnedType = any, Res = (input: InputType) => ReturnedType> = Res
 
-type ChainGenerics = {
-  Input: unknown
-  Output: unknown
-}
-
+// type LinkedFn<F1 extends Fn, F2 extends Fn> = (input: Parameters<F1>[0]) => Parameters<F2>[0]
 type LinkedFn<
   F1 extends Fn,
   F2 extends Fn,
-  Res extends Fn = (input: Parameters<F1>[0]) => Parameters<F2>[0],
-> = Res
+  RT = (input: ReturnType<F1>) => ReturnType<F2>,
+> = RT extends Fn ? RT : never
 
-type FunctionChainArray<
+export type FunctionChainArray<
   T extends [Fn, ...Fn[]],
-  Tail1 extends Fn[] = T extends [any, ...infer R] ? R : never,
-  Tail2 = [
-    ...Tail1,
-    T extends [...any, infer L extends Fn] ? (Input: ReturnType<L>) => never : never,
-  ],
-  Tail extends [Fn, ...Fn[]] = Tail2 extends [Fn, ...Fn[]] ? Tail2 : never,
-> = {
-  [K in keyof T]: LinkedFn<T[K], Lookup<Tail, K>>
-}
+  First extends Fn = T extends [infer F extends Fn, ...any] ? F : never,
+  ModdedT extends Fn[] = [(Input: any) => Parameters<First>[0], ...T],
+  Res = { [K in keyof T]: LinkedFn<Lookup<ModdedT, K>, T[K]> },
+  RT extends [Fn, ...Fn[]] = Res extends [...infer A extends [Fn, ...Fn[]]] ? A : never, // hack
+> = RT
 
-type ComposedFn<Chain extends ChainGenerics, Res = (input: Chain['Input']) => Chain['Output']> = Res
-
-type CalculatedCompositeFn<
+export type CalculatedCompositeFn<
   T extends [Fn, ...Fn[]],
   First extends Fn = T extends [infer F extends Fn, ...any] ? F : never,
   Last extends Fn = T extends [...any, infer F extends Fn] ? F : never,
-  Res = ComposedFn<{
-    Input: Parameters<First>[0]
-    Output: ReturnType<Last>
-  }>,
+  Res extends Fn = Fn<Parameters<First>[0], ReturnType<Last>>,
 > = Res
 
 /**
- * composes multiple functions, into a single function.  Equivalent to fn1(fn2(fn3('arg')))
- * each function must take the form `(input)=>output`
- * @param fnsToAdd
- * @returns
+ * composes multiple functions, into a single function.  Equivalent to (arg)=>fn3(fn2(fn1(arg)))
+ * each function must take the form `(input:T)=>output`
+ * @param functionsToCompose - array of functions, with linked inputs and outputs
+ * @returns a function that accepts the first function in the array's input, and returns the last function
+ *  in the array's output
  */
-const compose = <T extends [Fn, ...Fn[]]>(...fnsToAdd: T & FunctionChainArray<T>) => {
-  const composedFn: CalculatedCompositeFn<FunctionChainArray<T>> = fnsToAdd.reduce(
+// function compose<>(...functionsToCompose: [Fn, ...Fn[]])
+function compose<T extends [Fn, ...Fn[]]>(
+  ...functionsToCompose: T & FunctionChainArray<T>
+): CalculatedCompositeFn<FunctionChainArray<T>>
+function compose<S>(...functionsToCompose: [Fn<S, S>, ...Fn<S, S>[]]): <T extends S>(input: T) => T
+function compose(...functionsToCompose) {
+  const composedFn = functionsToCompose.reduce(
     (previousFn, currentFn) => (input) => currentFn(previousFn(input)),
   )
-  return composedFn //  { T: T; FChain: FunctionChainArray<T> }
+  return composedFn
 }
 
 export default compose

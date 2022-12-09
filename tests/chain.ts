@@ -1,15 +1,14 @@
+/* eslint-disable @typescript-eslint/prefer-as-const */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/ban-types */
-/* eslint-disable @typescript-eslint/prefer-as-const */
 import { vi, describe, it, expect, Mock } from 'vitest'
 
-import chain, { AsyncFunc } from '../src/chain.js'
-import type { AwaitedChainController, Resolver } from '../src/chain.js'
-import { times } from '../src/smallUtils.js'
+import { chain, times } from '../src/index'
+import type { AwaitedChainController, Resolver, AsyncFunc } from '../src/index'
 
 type StrictEqual<A1, A2> = [A1] extends [A2] ? ([A2] extends [A1] ? true : false) : false
 
-const doNotCall = () => expect(true).toBe(false) as unknown as never
+const doNotCall = (() => expect(true).toBe(false) as unknown as never) as unknown as any
 const checkType = <T>(arg: T) => arg
 const typesMatch = <A, B>(match: StrictEqual<A, B>) => match
 
@@ -53,7 +52,7 @@ const autoResolvers = () => {
     times(numberOfLinks, () => {
       const resolver = vi.fn((x, resolve) => resolve(x + 1))
       resolvers.push(resolver)
-      res = (res as (arg: any) => any)(resolver)
+      res = (res as unknown as (arg: any) => any)(resolver)
     })
     return res
   }
@@ -530,7 +529,7 @@ describe('chain', () => {
       },
     )
 
-    const awaitter = chainN42.await(
+    const awaits = chainN42.await(
       'start',
       (result) => {
         typesMatch<'I42', typeof result>(true)
@@ -634,28 +633,48 @@ describe('chain', () => {
         | 'ResResolver41'
         | 'ResResolver42'
       >,
-      typeof awaitter
+      typeof awaits
     >(true)
   })
   it('example usage', () =>
     new Promise((done) => {
-      const addA = <T extends string>(x: T, resolver: Resolver<(result: `A:${T}`) => void>) =>
-        resolver(`A:${x}` as `A:${T}`)
-      const addB = <T extends string>(x: T, resolver: Resolver<(result: `B:${T}`) => void>) =>
-        resolver(`B:${x}` as `B:${T}`)
-      const addC = <T extends string>(x: T, resolver: Resolver<(result: `C:${T}`) => void>) =>
-        resolver(`C:${x}` as `C:${T}`)
+      // import { chain } from '...'
+      // import type { Resolver } from '....'
 
-      const fooChain = chain(addA<'start'>, addB<'A:start'>, addC<'B:A:start'>)
-      const fooBarChain = fooChain(
-        addA<'C:B:A:start'>,
-        addB<'A:C:B:A:start'>,
-        addC<'B:A:C:B:A:start'>,
+      // function to generate dummy asynchronous functions
+      const addChar =
+        <T extends string, C extends string>(c: C) =>
+        (x: T, resolver: Resolver<(result: `${C}:${T}`) => void>) =>
+          resolver(`${c}:${x}` as `${C}:${T}`)
+
+      // adds three asynchronous functions to the chain
+      const fooChain = chain(
+        addChar<'start', 'A'>('A'),
+        addChar<'A:start', 'B'>('B'),
+        addChar<'B:A:start', 'C'>('C'),
       )
-
+      // adds a further three asynchronous functions to the chain
+      const fooBarChain = fooChain(
+        addChar<'C:B:A:start', 'A'>('A'),
+        addChar<'A:C:B:A:start', 'B'>('B'),
+        addChar<'B:A:C:B:A:start', 'C'>('C'),
+      )
+      // awaits chain of asynchronous functions
       fooBarChain.await('start' as const, (result) => {
         expect(result).toEqual('C:B:A:C:B:A:start')
         done(undefined)
+
+        // Resolver code:
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const validAsyncFn = (
+          x: string,
+          resolver: Resolver<(output: string) => void, (error: Error) => void>,
+        ) => {
+          resolver('a') // or
+          resolver.result('a') // or
+          resolver.error(new Error('a')) // or
+        }
       })
     }))
   it('basic', () =>
@@ -975,7 +994,32 @@ describe('chain', () => {
   //     controller = controllerA
   //     expect(controller.controller).toEqual('cancelA')
   //   }))
-  it('splicing chains', () =>
+  // it('splicing chains', () =>
+  //   new Promise((done) => {
+  //     type AFnString = (input: string, resolver: Resolver<(out: string) => void>) => void
+  //     const x1: AFnString = (x, resolve) => resolve(`A:${x}`)
+  //     const x2: AFnString = (x, resolve) => resolve(`B:${x}`)
+  //     const chainString = chain(x1, x2)
+
+  //     const chainNumber = chain((x: string, resolve: Resolver<(out: number) => void>) =>
+  //       resolve(1),
+  //     )((x: number, resolve: Resolver<(out: number) => void>) => resolve(x + 1))
+
+  //     const chainSplice = chainString.splice(chainNumber)
+
+  //     chainSplice.await('a', (result) => expect(result).toEqual(2))
+
+  //     const x3: AFnString = (x, resolve) => resolve(`C:${x}`)
+  //     const chainB = chainString.splice(chainString)(x3)
+
+  //     chainB.await('Start', (result) => {
+  //       // debugger
+  //       expect(result).toEqual('C:B:A:B:A:Start')
+  //       done(undefined)
+  //     })
+  //   }))
+
+  it('splicing chains2', () =>
     new Promise((done) => {
       type AFnString = (input: string, resolver: Resolver<(out: string) => void>) => void
       const x1: AFnString = (x, resolve) => resolve(`A:${x}`)
@@ -986,12 +1030,12 @@ describe('chain', () => {
         resolve(1),
       )((x: number, resolve: Resolver<(out: number) => void>) => resolve(x + 1))
 
-      const chainSplice = chainString.splice(chainNumber)
+      const chainSplice = chainString(chainNumber.asyncFn)
 
       chainSplice.await('a', (result) => expect(result).toEqual(2))
 
       const x3: AFnString = (x, resolve) => resolve(`C:${x}`)
-      const chainB = chainString.splice(chainString)(x3)
+      const chainB = chainString(chainString.asyncFn)(x3)
 
       chainB.await('Start', (result) => {
         // debugger

@@ -3,34 +3,62 @@
 
 import { enhancedMap } from '.'
 import type { EnhancedMap } from '.'
-import { Union } from './typescript utils'
+import { LMerge, RecursiveUnion } from './typescript utils'
 
-type AnyCallback = (...args: never[]) => void
+type CouplerOptions = {
+  outgoingCallbackName: string
+  incomingCallbackName: string
+  indexed: boolean
+}
+
+const defaultOptions = {
+  outgoingCallbackName: 'addOutgoingCallback',
+  incomingCallbackName: 'addIncomingCallback',
+  indexed: false,
+} as const
+
+type DefaultOptions = typeof defaultOptions extends infer O
+  ? { -readonly [K in keyof O]: O[K] }
+  : never
+
+type PartialOptions = Partial<CouplerOptions>
+
+type FinalOption<
+  Options extends PartialOptions,
+  T = LMerge<DefaultOptions, Options>,
+  RT extends CouplerOptions = T extends CouplerOptions ? T : never,
+> = RT
+
+type AnyCallback = (...args: any[]) => any
 type IncomingCallback<T extends AnyCallback> = T
 type OutgoingCallback<T extends AnyCallback> = (incomingCallback: IncomingCallback<T>) => void
 
-type AddOutgoingCallback<T extends AnyCallback> = (
-  outgoingCallback: OutgoingCallback<T>,
-  index?: number,
-) => void
-type AddIncomingCallback<T extends AnyCallback> = (
-  incomingCallback: IncomingCallback<T>,
-  index?: number,
-) => void
-
 export type AsyncCoupler<
-  OutgoingCallbackName extends string,
-  IncomingCallbackName extends string,
-  T extends AnyCallback,
-  U = {
-    [key in OutgoingCallbackName]: AddOutgoingCallback<T>
-  } & { [key in IncomingCallbackName]: AddIncomingCallback<T> } & {
-    readonly incomingCallbacks: EnhancedMap<IncomingCallback<T>>
-    readonly outgoingCallbacks: EnhancedMap<OutgoingCallback<T>>
-  },
-> = U extends infer O ? { [K in keyof O]: O[K] } : never
-
-type Z = AsyncCoupler<'A', 'B', (a: any) => any>
+  Options extends CouplerOptions,
+  IncomingCallbackT extends AnyCallback,
+> = RecursiveUnion<
+  [
+    {
+      [key in Options['outgoingCallbackName']]: Options['indexed'] extends true
+        ? (
+            outgoingCallback: (incomingCallback: IncomingCallback<IncomingCallbackT>) => void,
+            index?: number,
+          ) => void
+        : (
+            outgoingCallback: (incomingCallback: IncomingCallback<IncomingCallbackT>) => void,
+          ) => void
+    },
+    {
+      [key in Options['incomingCallbackName']]: Options['indexed'] extends true
+        ? (incomingCallback: IncomingCallback<IncomingCallbackT>, index?: number) => void
+        : (incomingCallback: IncomingCallback<IncomingCallbackT>) => void
+    },
+    {
+      readonly incomingCallbacks: EnhancedMap<IncomingCallback<IncomingCallbackT>>
+      readonly outgoingCallbacks: EnhancedMap<OutgoingCallback<IncomingCallbackT>>
+    },
+  ]
+>
 
 const modifyAnyThrownErrors = (fn: () => void, modifiedErrorMsg: string) => {
   try {
@@ -44,7 +72,7 @@ const modifyAnyThrownErrors = (fn: () => void, modifiedErrorMsg: string) => {
  * Enables the coupling of two async callbacks: `incomingCallback` and `outgoingCallback` - which can be renamed
  * as require. The callbacks may be added in any sequence and are enqueued.
  * Once both callbacks have been added: `outgoingCallback(incomingCallback)` is called
- * optionally, instead of FIFO, a manual index my be specified causing callbacks to be made in index order
+ * optionally, instead of FIFO, a manual index may be specified causing callbacks to be made in index order
  *
  * Example:
  * ```
@@ -61,15 +89,17 @@ const modifyAnyThrownErrors = (fn: () => void, modifiedErrorMsg: string) => {
  * @param {boolean} indexed
  * @returns
  */
-export function asyncCoupler<
-  OutgoingCallbackName extends string,
-  IncomingCallbackName extends string,
-  T extends AnyCallback,
->(
-  outgoingCallbackName: OutgoingCallbackName,
-  incomingCallbackName: IncomingCallbackName,
-  indexed?: boolean,
-) {
+
+function asyncCoupler<T extends AnyCallback>(): AsyncCoupler<DefaultOptions, T>
+function asyncCoupler<T extends AnyCallback, O extends PartialOptions>(
+  options: O,
+): AsyncCoupler<FinalOption<O>, T>
+function asyncCoupler<T extends AnyCallback, O extends PartialOptions>(
+  options?: O,
+): AsyncCoupler<FinalOption<O>, T> | AsyncCoupler<DefaultOptions, T> {
+  type FinalOpts = FinalOption<O>
+  const opts = { ...defaultOptions, ...(options ?? {}) } as FinalOpts
+
   const incomingCallbacks = enhancedMap<IncomingCallback<T>>()
   const outgoingCallbacks = enhancedMap<OutgoingCallback<T>>()
   let currentIdx = 1
@@ -84,17 +114,16 @@ export function asyncCoupler<
       makeNextCallback()
     }
   }
-  const addOutgoingCallback: AddOutgoingCallback<T> = (
-    outgoingCallback: OutgoingCallback<T>,
-    index = 1,
-  ) => {
+  const addOutgoingCallback = (outgoingCallback: OutgoingCallback<T>, index = 1) => {
     const incomingCallback = incomingCallbacks.get(currentIdx)
     if (incomingCallback) {
       incomingCallbacks.delete(currentIdx)
-      if (indexed && index <= currentIdx) throw new Error(`index: ${index} already processed`)
-      if (indexed) currentIdx += 1
-      outgoingCallback(incomingCallback)
-      if (indexed) makeNextCallback()
+      if (opts.indexed) {
+        if (index <= currentIdx) throw new Error(`index: ${index} already processed`)
+        currentIdx += 1
+        outgoingCallback(incomingCallback)
+        makeNextCallback()
+      } else outgoingCallback(incomingCallback)
     } else {
       modifyAnyThrownErrors(
         () => outgoingCallbacks.add(outgoingCallback, index),
@@ -103,17 +132,16 @@ export function asyncCoupler<
     }
   }
 
-  const addIncomingCallback: AddIncomingCallback<T> = (
-    incomingCallback: IncomingCallback<T>,
-    index = 1,
-  ) => {
+  const addIncomingCallback = (incomingCallback: IncomingCallback<T>, index = 1) => {
     const outgoingCallback = outgoingCallbacks.get(currentIdx)
     if (outgoingCallback) {
       outgoingCallbacks.delete(currentIdx)
-      if (indexed && index <= currentIdx) throw new Error(`index: ${index} already processed`)
-      if (indexed) currentIdx += 1
-      outgoingCallback(incomingCallback)
-      if (indexed) makeNextCallback()
+      if (opts.indexed) {
+        if (index <= currentIdx) throw new Error(`index: ${index} already processed`)
+        currentIdx += 1
+        outgoingCallback(incomingCallback)
+        makeNextCallback()
+      } else outgoingCallback(incomingCallback)
     } else {
       modifyAnyThrownErrors(
         () => incomingCallbacks.add(incomingCallback, index),
@@ -122,18 +150,20 @@ export function asyncCoupler<
     }
   }
   return {
-    [outgoingCallbackName]: addOutgoingCallback,
-    [incomingCallbackName]: addIncomingCallback,
+    [opts.outgoingCallbackName]: addOutgoingCallback,
+    [opts.incomingCallbackName]: addIncomingCallback,
     incomingCallbacks,
     outgoingCallbacks,
-  } as unknown as AsyncCoupler<OutgoingCallbackName, IncomingCallbackName, T>
+  } as unknown as AsyncCoupler<FinalOpts, T>
 }
 
-const defaultAsyncCoupler = <T extends AnyCallback>(indexed?: boolean) =>
-  asyncCoupler<'addOutgoingCallback', 'addIncomingCallback', T>(
-    'addOutgoingCallback',
-    'addIncomingCallback',
-    indexed,
-  )
+/**
+ * see https://stackoverflow.com/questions/74662987/how-can-one-achieve-better-generic-inference?noredirect=1#comment131785747_74662987
+ */
 
-export default defaultAsyncCoupler
+export const asyncCouplerWorkAround =
+  <O extends PartialOptions>(options?: O) =>
+  <T extends AnyCallback>() =>
+    asyncCoupler<T, O>(options || ({} as O))
+
+export default asyncCoupler

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // import { IsStrictAny, IsStrictUnknown, IsUnion } from './typescript utils'
-import { TupleToUnion, Union } from './typescript utils'
+import { TupleToUnion } from './typescript utils'
 
 export type Input<T extends unknown | unknown[] = unknown[]> = T
 export type ResultCbAny = (result: any) => any

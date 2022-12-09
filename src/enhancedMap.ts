@@ -15,6 +15,7 @@ export const enhancedMap = <V>(...iterable: readonly V[]) => {
     },
     /**
      * adds an array of item to the map.
+     * @returns a function that removes all of the added item from the map.
      */
     addItems(...items: V[]) {
       const removeItemFns = items.map((item) => this.add(item))
@@ -87,7 +88,7 @@ export const enhancedMap = <V>(...iterable: readonly V[]) => {
     delete(key: number) {
       return map.delete(key)
     },
-    forEach(callbackfn: (value: V, key: number) => void, thisArg?: any) {
+    forEach(callbackfn: (value: V, key: number) => void, thisArg?: unknown) {
       return
       map.forEach(callbackfn, thisArg)
     },

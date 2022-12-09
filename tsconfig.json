@@ -84,8 +84,8 @@
     // "skipDefaultLibCheck": true,                      /* Skip type checking .d.ts files that are included with TypeScript. */
     "skipLibCheck": true,                             /* Skip type checking all .d.ts files. */
     
-    "noErrorTruncation": true,
+    // "noErrorTruncation": true,
   },
-  "include": [ "src", "tests", "tests apluspromises" ]
-  // "exclude": ["src","tests","tmp"]
+  "include": [ "src", "tests" ],
+  "exclude": ["src/archive","tests apluspromises", "tests/archive"]
 }

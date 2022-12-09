@@ -1,70 +1,63 @@
 # Chain Overview
 
-A fast, simple, typed way to chain together asynchronous calls - with the output of each function acting as the input to the subsequent function.
+A fast, simple, typed way to chain together asynchronous functions - with the output of each function acting as the input to the subsequent function.
 
-It's similar to a `compose` function but for async functions.
+If an error is returned by a function in the chain, that effectively ends any further processing of the chain.
 
-If an error is returned by a node, that effectively ends any further processing of the chain.
-
-An `await`ed chain returns an `AwaitedChainController` - which can be used to communicate with the currently executing async function, including for example implementing a cancel ability.
+An `await`ed chain returns an `AwaitedChainController` - which can be used to communicate with the currently executing function, including for example implementing a cancel ability.
 
 ## Example Basic Usage
 
 ```typescript
 import { chain } from '...'
+import type { Resolver } from '....'
 
-const fooChain = chain<
-  { Input: 'start' },
-  { Output: 'node 1' },
-  { ResultResolverController: void }
->((x, resolve) => {
-  expect(x).toEqual('start')
-  resolve('node 1')
-})<{ Output: 'node 2' }>((x, resolve) => {
-  expect(x).toEqual('node 1')
-  resolve('node 2')
+
+// function to generate dummy asynchronous functions
+const addChar =
+  <T extends string, C extends string>(c: C) =>
+  (x: T, resolver: Resolver<(result: `${C}:${T}`) => void>) =>
+    resolver(`${c}:${x}` as `${C}:${T}`)
+
+// adds three asynchronous functions to the chain
+const fooChain = chain(
+  addChar<'start', 'A'>('A'),
+  addChar<'A:start', 'B'>('B'),
+  addChar<'B:A:start', 'C'>('C'),
+)
+// adds a further three asynchronous functions to the chain
+const fooBarChain = fooChain(
+  addChar<'C:B:A:start','A'>('A'),
+  addChar<'A:C:B:A:start','B'>('B'),
+  addChar<'B:A:C:B:A:start','C'>('C'),
+)
+// awaits chain of asynchronous functions
+fooBarChain.await('start' as const, (result) => {
+  expect(result).toEqual('C:B:A:C:B:A:start')
+  done(undefined)
 })
-
-fooChain.await('start', (result) => expect(result).toEqual('node 2'))
 ```
-
-
 
 ## chain
 
 ``` typescript
-chain<{
-  Input?: any                    // Start input of the chain
-  ResultResolverController?: any // First node's return type
-  ErrorResolverController?: any  // First node's ErrorCb return type
-}, {
-  Output?: any                   // Output type returned by first node
-  Error?: any                    // Error type returned by first node
-  ResultResolverController?: any // Second node's return type
-  ErrorResolverController?: any  // Second node's ErrorCb return type  
-}, { 
-  // the following generics are defaults that apply to the entire chain. They  can be overridden or modified
-  InputOutput?: any     
-  Error?: any                                  
-  ResultResolverController?: any 
-  ErrorResolverController?: any  
-}> ( asyncFunction: AsyncFn ) => ChainNode
+chain( ...asyncFunctions: [ValidAsyncFn, ...ValidAsyncFn[]] ) => ChainNode
 ```
 
-## AsyncFn
+### ValidAsyncFn
 
 Functions passed to the chain must have the following form:
 
 ``` typescript
 ( 
-  input: any,           // input provided to the async function
-  resolver: Resolver    // a Resolver object is provided to the function - see below
-) => any                  // ResultResolverController
+  input: any,        // input provided to the async function
+  resolver: Resolver // a Resolver object is provided to the function - see below
+) => any             // ResultResolverController
 ```
 
-## Resolver
+### Resolver
 
-The `Resolver` is a function object passed to the `AsyncFn` and it's used to return either a `result` or an `error`:
+The `Resolver` is a function object passed to the `ValidAsyncFn` and it's used to return either a `result` or an `error`:
 
 ```typescript
 {
@@ -74,137 +67,169 @@ The `Resolver` is a function object passed to the `AsyncFn` and it's used to ret
 }
 ```
 
-## ChainNode
-
-Each AsyncFn added to the chain, creates a new `ChainNode`.  ChainNodes can have other AsyncFn's added, and can be awaited, or trap any downstream errors.  Other chains can also be spliced into the chain.
+A simple way to type a `Resolver` is using the provided type `Resolver<ResultFn, ErrorFn>` - note `ErrorFn` is optional e.g.:
 
 ```typescript
-# Chain Overview
-
-A fast, simple, typed way to chain together asynchronous calls - with the output of each function acting as the input to the subsequent function.
-
-It's similar to a `compose` function but for async functions.
-
-If an error is returned by a node, that effectively ends any further processing of the chain.
-
-An `await`ed chain returns an `AwaitedChainController` - which can be used to communicate with the currently executing async function, including for example implementing a cancel ability.
-
-## Example Basic Usage
-
-```typescript
-import { chain } from '...'
-
-const fooChain = chain<
- 	{ Input: 'start' },
- 	{ Output: 'node 1' },
- 	{ ResultResolverController: void }
->((x, resolve) => {
-  expect(x).toEqual('start')
-  resolve('node 1')
-})<{ Output: 'node 2' }>((x, resolve) => {
-  expect(x).toEqual('node 1')
-  resolve('node 2')
-})
-
-fooChain.await('start', (result) => expect(result).toEqual('node 2'))
-
-```
-
-## chain
-
-``` typescript
-chain<{
-  Input?: any                    // Start input of the chain
-  ResultResolverController?: any // First node's return type
-  ErrorResolverController?: any  // First node's ErrorCb return type
-}, {
-  Output?: any                   // Output type returned by first node
-  Error?: any                    // Error type returned by first node
-  ResultResolverController?: any // Second node's return type
-  ErrorResolverController?: any  // Second node's ErrorCb return type  
-}, { 
-  // the following generics are defaults that apply to the entire chain. 
-  // They  can be overridden or modified
-  InputOutput?: any     
-  Error?: any                                  
-  ResultResolverController?: any 
-  ErrorResolverController?: any  
-}> ( asyncFunction: AsyncFn ) => ChainNode
-```
-
-## AsyncFn
-
-Functions passed to the chain must have the following form:
-
-``` typescript
-( input: any, resolver: Resolver ) => any
-```
-
-## Resolver
-
-The `Resolver` is an function object passed to the `AsyncFn` and it's used to return either a `result` or an `error`:
-
-```typescript
-{
-  (result: any):any
-  result: (result: any)=>any
-  error: (error: any)=>any
+import type { Resolver } from '....'
+const validAsyncFn = (
+    x: string, 
+    resolver: Resolver<(output: string)=>void,(error: Error)=>void>
+)=>{
+  resolver('...') // or
+  resolver.result('...') // or
+  resolver.error(new Error('...')) // or
 }
 ```
 
-## ChainNode
+### ChainNode
 
-Each AsyncFn added to the chain, creates a new `ChainNode`.  ChainNodes can have other AsyncFn's added, and can be awaited, or trap any downstream errors.  Other chains can also be spliced into the chain.
+Adding `ValidAsyncFn`s to the chain, creates a new `ChainNode`.  ChainNodes can have other ValidAsyncFns added, and can be awaited, or trap upstream errors.
 
 ```typescript
 {
-  // function call to add additional ChainNodes
-  <{
-    Error?: any                    // Error type returned by node
-    Output?: any                   // Output type returned by node
-    ResultResolverController?: any // Subsequent node's return type
-    ErrorResolverController?: any  // Subsequent node's ErrorCb return type  
-  }, { 
-    // the following generics are defaults that apply to any subsequent nodes. 
-    // They can be overridden or modified
-    Error?: any                    
-    Output?: any                   
-    ResultResolverController?: any 
-    ErrorResolverController?: any  
-  }>
-  ( asyncFunction: AsyncFn ): ChainNode
+  // function to add additional ValidAsyncFns to the chain
+  ( validAsyncFns: [ValidAsyncFn, ...ValidAsyncFn[]] ): ChainNode
   
   // Symbol('Chain Node')
   type: chainNodeType
   
-  // captures all downstream Errors - prevents Error bubbling
-  // trapping an error here, breaks the execution of the rest
+  // captures all downstream errors and prevents error bubbling to
+  // for example an errorCb in await.
+  // all errors effectively halt the execution of the rest
   // of the chain.
-  onError(callback: AccumulatedErrorCb): ChainNode
+  onError(callback: (finalError: any)=>any): ChainNode
   
-  // await chain
+  // awaits a chain
   await(
     input: any,
     resultCb: (finalResult: any)=>any,
     errorCb?: (finalError: any)=>any,
   ): AwaitedChainController
   
-  // inject another chain into this chain
-  splice(subChain:chain): ChainNode
+  // converts the chain into a ValidAsyncFn, which can then
+  // be spliced, or added into other chains.
+  readonly asyncFn: (input:any, resolver: Resolver)=>any
 }
 ```
 
-## AwaitedChainController
+### AwaitedChainController
 
-An object that contains the `ResultResolverController` of the currently executing `ChainNode`.  `ResultResolverControllers` are mostly not used and set to `void`.  However they can be used to provide a mechanism to communicate with the currently executing `ChainNode` - for example one could implement cancel functionality.
+An object that contains the `ResultResolverController` of the current asynchronously executing `ValidAsyncFn`.  `ResultResolverControllers` are mostly not used and set to `void`.  However they can be used to provide a mechanism to communicate with the currently executing `ValidAsyncFn` - for example one could implement `cancel` or `currentStatus` functionality.
 
 ```typescript
 {
-	controller: any
+  controller: any
 }
 ```
 
-# Compose
+# EnhancedChain Overview
+
+`EnhancedChain`, is built on top of `Chain` and provides additional functionality including:
+
+1. can be converted into a promise, via the `.input(startInput:any): Promise<any>` method
+2. synchronous functions can be added to the chain via `.sync(...syncFunctions: (input:any)=>any[]): EnhancedChainNode`
+
+And the following options can be specified:
+
+1. `thrownErrorToErrorCb` - any errors thrown are routed to the `errorCb`.  default is `true`
+2. `enforceSingleResolution` - a resolver may be called once - any subsequent calls throw an error. default is `true`
+3. `forceAsync` - all `ValidAsync` calls can be wrapped in `setImmediate` | `nextTick` | `queueMicrotask`  - the default is `none`
+4. `resolveReturnedPromises` any promises returned via a resolver are resolved, before being passed on. default is `true`  - note typing for this not yet properly implement!
+5. `callbacks` - chain execution can be tracked via a range of callbacks:
+
+```typescript
+{
+  beforeChainStart?: () => void
+  beforeChainResult?: () => void
+  afterChainResult?: () => void
+  beforeChainError?: () => void
+  afterChainError?: () => void
+
+  beforeChainResolved?: () => void
+  afterChainResolved?: () => void
+
+  beforeNodeStart?: () => void
+  beforeNodeResult?: () => void
+  afterNodeResult?: () => void
+  beforeNodeError?: () => void
+  afterNodeError?: () => void
+}
+```
+
+## Example Usage
+
+```typescript
+import { enhancedChain } from '...'
+import type { Resolver } from '...'
+
+const eChainy = enhancedChain(
+  {
+    callbacks: { afterChainResolved: () => console.log('chain resolved') },
+  },
+  (x: 'start', resolve: Resolver<(arg: 'A') => void>) => {
+    console.log(x) // 'start'
+    resolve('A')
+  },
+).sync(
+  (x: 'A') => 'B' as const,
+  (x: 'B') => new Promise((resolve) => resolve('C')),
+)
+
+const eChainyMore = eChainy((x: 'C', resolve: Resolver<(arg: 'done') => void>) => {
+  console.log(x) // 'C'
+  resolve('done' as const)
+})
+
+eChainy.input('start').then((result) => {
+  console.log(result) // 'C'
+})
+
+eChainyMore.await('start', (result) => {
+  console.log(result) // 'done'
+  done(undefined)
+})
+```
+
+## enhancedChain
+
+```typescript
+enhancedChain( options: EnhanceChainOptions, ...asyncFunctions: ValidAsyncFn[] ) => EnhancedChainNode
+```
+
+### EnhanceChainOptions
+
+```typescript
+{
+    thrownErrorToErrorCb?: boolean;
+    enforceSingleResolution?: boolean;
+    forceAsync?: 'setImmediate' | 'nextTick' | 'queueMicrotask' | 'none';
+    resolveReturnedPromises?: boolean;
+    callbacks?: LifecycleCallbacks;
+}
+```
+
+### EnhancedChainNode
+
+expands `ChainNode` by addition the following  methods:
+
+```typescript
+{
+  // function to add additional synchronous functions to the chain
+  sync( ...syncFns: [syncFn, ...syncFn[]] ): EnhancedChainNode
+  
+  // returns a Promise of the EnhancedChain
+  input(inputArg: any): Promise(any)
+  
+  // Symbol('Enhanced Chain Node')
+  type: enhancedChainNodeType
+  
+  ...see ChainNode
+}
+```
+
+# Compose Overview
+
+Composes multiple functions, into a single function.  Equivalent to `(arg)=>fn3(fn2(fn1(arg)))`
 
 ## Example Usage
 
@@ -217,3 +242,287 @@ const fn = compose(
 console.log(fn('start')) //`start:A:B`
 ```
 
+# Compositor Overview
+
+An object to streamline function composition
+
+## Example Usage
+
+```typescript
+import { compositor } from '...'
+
+// chains functions together
+const fn = compositor(
+  (input: 'a') => `${input}:b` as 'a:b',
+  (input: 'a:b') => `${input}:c` as 'a:b:c',
+)
+const fnFn = fn.call // makes a snapshot of chained functions
+console.log(fnFn('a')) // 'a:b:c'
+
+// chains are expandable
+const fn2 = fn(
+  (input: 'a:b:c') => `${input}:d` as 'a:b:c:d',
+  (input: 'a:b:c:d') => `${input}:e` as 'a:b:c:d:e',
+)
+console.log(fn2.call('a')) // 'a:b:c:d:e'
+console.log(fnFn('a')) // 'a:b:c'
+
+// an empty compositor returns whatever it is called with
+console.log(compositor().call('hello')) // hello
+
+// effects are functions added to the composition, but
+// which don't impact the composition calculation.
+fn2.addEffects(
+  () => console.log('hello'),
+  () => console.log('world'),
+)
+console.log(fn2.call('a')) // returns 'a:b:c:d:e' and logs 'hello' 'world'
+```
+
+## compositor
+
+```typescript
+{
+  // add functions to the compositor
+  (...fns: [(input: any) => any, ...((input: any) => any)[]]): Compositor
+  // creates and returns the composed function
+  call(input:any): any
+  /**
+   * utility to add functions that take no input, and return no output
+   * but to run them in sequence in the chain - useful for example to fire events,
+   * or notifiers.
+   */
+  addEffects(...effects: [() => void, ...(() => void)[]]): Compositor
+}
+```
+
+# AsyncCoupler Overview
+
+Enables the coupling of two async callbacks: `incomingCallback` and `outgoingCallback` - which methods can be renamed as require. The callbacks may be added in any sequence and are enqueued.
+
+Once both callbacks have been added: `outgoingCallback(incomingCallback)` is called.  Optionally, instead of FIFO, a manual index may be specified causing callbacks to be made in index order.
+
+`asyncCouplerWorkAround` provides a DRY'er way to specify the typings.
+
+## Example Usage
+
+``` typescript
+// default asyncCoupler has `addOutgoingCallback` and `addIncomingCallback` methods
+const coupler = asyncCoupler<(result: number) => void>()
+coupler.addOutgoingCallback((incomingCb) => incomingCb(1))
+coupler.addIncomingCallback(
+  (result) => console.log(result), // 1
+)
+
+// renaming methods
+const cCoupler = asyncCoupler<
+  (input: number) => void,
+  {
+    outgoingCallbackName: 'addA'
+    incomingCallbackName: 'addB'
+  }
+>({
+  outgoingCallbackName: 'addA',
+  incomingCallbackName: 'addB',
+})
+cCoupler.addA((incomingCb) => incomingCb(1))
+cCoupler.addB((result) => {
+  console.log(result) // 1
+  done(undefined)
+})
+
+// a workaround to reduce typing
+const cCouplerA = asyncCouplerWorkAround({
+  outgoingCallbackName: 'addA',
+  incomingCallbackName: 'addB',
+} as const)<(input: number) => void>()
+cCouplerA.addA((incomingCb) => incomingCb(1))
+cCouplerA.addB((result) => {
+  console.log(result) // 1
+  done(undefined)
+})
+```
+
+# AsyncFnsInParallel
+
+AsyncFnsInParallel executes asynchronous functions in parallel.  Similar to, but simpler than `Promise.all`and more performant.
+
+Asynchronous functions take the form:
+
+````typescript
+( input: any, resolver: AsyncFnResolver )=>controller
+````
+
+## Example Usage
+
+```typescript
+import { asyncFnsInParallel } from '...'
+import type { AsyncFnResolver } from '...'
+
+const parallelFns = asyncFnsInParallel(
+  (a: 1, resolver: AsyncFnResolver<(value: 1) => void>) =>
+    setTimeout(() => resolver((a * 1) as 1), 100),
+  (a: 1, resolver: AsyncFnResolver<(value: 2) => void>) =>
+    setTimeout(() => resolver((a * 2) as 2), 100),
+)
+parallelFns.await(1, (results) => {
+  console.log(results) // [1,2]
+})
+```
+
+### asyncFnsInParallel
+
+```typescript
+asyncFnsInParallel( ...asyncFns: [AsyncFnAny, ...AsyncFnAny[]]) =>{
+    await: (
+      input: Input,
+      resultCb: (resultArray: ResultsArray) => void,
+      errorCb?: (errorArray: ErrorsArray, resultArray: ResultsArray) => void,
+    )=>AsyncFnsInParallelController
+    promise: (input: any)=>Promise<any>
+}
+```
+
+### AsyncFnsInParallelController
+
+```typescript
+{ 
+    state:  'awaited' | 'halted' | 'done' | 'error'
+    controllers: Controllers[]
+    resultQueue: [...results:any[]][]
+    errorQueue: [...errorArgs:any[]][]
+    controllerQueue: Controllers[]
+    halt():void
+}
+```
+
+### AsyncFnResolver
+
+A simple way to type a `Resolver` is using the provided type `AsyncFnResolver<ResultFn, ErrorFn>` - note `ErrorFn` is optional e.g.:
+
+```typescript
+import type { Resolver } from '....'
+const validAsyncFn = (
+    x: string, 
+    resolver: AsyncFnResolver<(output: string)=>void,(error: Error)=>void>
+)=>{
+  resolver('...') // or
+  resolver.result('...') // or
+  resolver.error(new Error('...')) // or
+}
+```
+
+# Difference
+
+Finds the set of all elements in the first array not contained in the second array (i.e. non duplicated items).
+
+Note: typing is not battle tested and so unexpected edge cases may exist
+
+## Example Usage
+
+```typescript
+const u1 = difference([1, 2, 3, 4] as const, [7, 6, 5, 4, 3] as const) //=> [1,2]
+const u2 = difference([7, 6, 5, 4, 3] as const, [1, 2, 3, 4] as const); //=> [7,6,5]
+const u3 = difference([7, 6, 5, 4, 3], [1, 2, 3, 4]) ; //=> [7,6,5] type: number[]
+```
+
+# Intersection
+
+Given two arrays, intersection returns a set composed of the elements common to both arrays.
+
+Note: typing is not battle tested and so unexpected edge cases may exist
+
+## Example Usage
+
+```typescript
+const u1 = intersection([1, 2, 3, 4] as const, [7, 6, 5, 4, 3] as const) //=> [3,4]
+const u2 = intersection([7, 6, 5, 4, 3] as const, [1, 2, 3, 4] as const) //=> [3,4]
+const u3 = intersection([7, 6, 5, 4, 3] as const, [1, 2, 3, 4, 'a'] as const) //=> [3,4]
+const u4 = intersection([7, 6, 5, 4, 3] as const, [1, 2, 3, 4]) //=> [3,4] type: number[]
+const u5 = intersection([7, 6, 5, 4, 3] as const, [1, 2, 3, 4, 'a']) //=> [3,4] type: (string | number)[]
+const u6 = intersection([7, 6, 5, 4, 3], [1, 2, 3, 4, 'a']) //=> [3,4] type: (string | number)[]
+```
+
+# EnhancedMap
+
+Enhances javascript's `map` function
+
+```typescript
+<V>(...iterable: readonly V[]) => {
+    /**
+     * adds an item and an optional `key` can be supplied, 
+     * otherwise insertion order is used.
+     * @returns a function that removes the added item from the map.
+     */
+    add(item: V, key?: number): () => boolean;
+    /**
+     * adds an array of item to the map.
+     * @returns a function that removes all of the added item from the map.
+     */
+    addItems(...items: V[]): () => void;
+    /**
+     *
+     * @param basedOnInsertionOrder whether to shift 
+     *             based on insertion order, or key order
+     * @returns V|undefined
+     */
+    shift(basedOnInsertionOrder?: boolean): V | undefined;
+    /**
+     * sets the item at `key`
+     */
+    set(key: number, value: V): any;
+    /**
+     * count of the total number of items added to the queue
+     */
+    readonly countOfItemsAdded: number;
+    reduce<U>(callbackfn: (previousValue: U, currentValue: V, currentKey: number, index: number) => U, initialValue: U, reverseOrder?: boolean): U;
+    map<U>(callbackfn: (value: V, key: number) => U, reverseOrder?: boolean): U[];
+    clear(): void;
+    delete(key: number): boolean;
+    forEach(callbackfn: (value: V, key: number) => void, thisArg?: any): void;
+    get(key: number): V | undefined;
+    has(key: number): boolean;
+    [Symbol.iterator](): IterableIterator<[number, V]>;
+    readonly [Symbol.toStringTag]: string;
+    readonly entries: IterableIterator<[number, V]>;
+    readonly keys: IterableIterator<number>;
+    readonly values: IterableIterator<V>;
+    readonly size: number;
+}
+```
+
+# Other utilities
+
+reverseForEach
+
+createUid
+
+times
+
+runFunctionOnlyOnce
+
+curriedRunFunctionsOnlyOnce
+
+methodOnlyOnce
+
+validateFn
+
+requireValue
+
+validObjects
+
+callbackTee
+
+capitaliseWords
+
+capitalise
+
+isObjectAndHasExecutableProperty
+
+isGetter
+
+isSetter
+
+isValue
+
+isFunction

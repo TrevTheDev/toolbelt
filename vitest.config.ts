@@ -14,5 +14,6 @@ if (process.env.DEBUG === 'jest') {
 export default defineConfig({
   test: {
     include: ['./tests/**/*.ts'],
+    exclude: ['./tests/archive/**/*.ts'],
   },
 })

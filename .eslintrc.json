@@ -51,11 +51,14 @@
       }
     ],
     "func-call-spacing": "off",
-    "@typescript-eslint/func-call-spacing": ["error"],
     "comma-spacing": "off",
-    "@typescript-eslint/comma-spacing": ["error"],
     "no-spaced-func": "off",
-    "implicit-arrow-linebreak": "off"
+    "implicit-arrow-linebreak": "off",
+    "no-use-before-define": "off",
+    "@typescript-eslint/no-use-before-define": ["error", { "typedefs": false }],
+    "@typescript-eslint/comma-spacing": ["error"],
+    "@typescript-eslint/func-call-spacing": ["error"],
+    "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "_.*" }]
   },
   "settings": {
     "node": {

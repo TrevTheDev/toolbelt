@@ -3,32 +3,26 @@ export {
   createUid,
   capitalise,
   runFunctionOnlyOnce,
+  times,
   /* curriedRunFunctionOnlyOnce, */ isObjectAndHasExecutableProperty,
 } from './smallUtils'
 
 export { enhancedMap } from './enhancedMap'
 export type { EnhancedMap } from './enhancedMap'
 
-export { default as asyncMapChain2, awaitAsyncMapChain } from './asyncMapChain2'
+export { default as asyncFnsInParallel, asyncFnsInParallelShort } from './asyncFnsInParallel'
+export type { Resolver as AsyncFnResolver, ValidResolver } from './asyncFnsInParallel'
 
-// export {
-//   default as asyncEffectsInParallel,
-//   asyncEffectsInParallelShort as asyncEffectsInParallelS,
-// } from './asyncEffectsInParallel'
-// export { default as serialCallbackChain } from './serialCallbackChain'
-// // export type {
-// //   AsyncMap, ResultCb, ErrorCb, CancelCb,
-// // } from './asyncMap'
-export { default as asyncMapChain } from './asyncMapChain'
-export { default as asyncCoupler, asyncCoupler as customAsyncCoupler } from './asyncCoupler'
+export { default as asyncCoupler, asyncCouplerWorkAround } from './asyncCoupler'
 export type { AsyncCoupler } from './asyncCoupler'
-// export { default as queueWithAsyncRemoveAll, queue } from './queue'
-// export type { Queue, QueueWithAsyncRemoveAll } from './queue'
-
-export { wrapAsyncMapInPromise, promiseTestObject } from './archive/wrapAsyncMapInPromise'
 
 export { default as compose } from './compose'
 
+export { default as compositor } from './compositor'
+
 export { difference, intersection } from './difference'
 
-export { addOnTop, addUnder, composedObjectsSuper } from './objectCompose'
+export { default as chain } from './chain'
+export type { AwaitedChainController, Resolver, AsyncFunc } from './chain'
+
+export { default as enhancedChain } from './enhancedChain'

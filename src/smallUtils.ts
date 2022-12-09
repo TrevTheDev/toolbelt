@@ -415,11 +415,17 @@ export function isValue<P extends PropertyKey, O extends { [Property in P]: any 
  * @param obj
  * @param prop
  * @returns boolean
+ *
+ * @example
+ * type Foo = { foo: unknown }
+ * const foo1:Foo = { foo: () => 1 }
+ * foo1.foo() // errors
+ * if(isFunction(foo1, 'foo')) foo1.foo() // doesn't error
  */
-export function isFunction<P extends PropertyKey, O extends { [Property in P]: any }>(
-  obj: O,
+export function isFunction<P extends PropertyKey>(
+  obj: { [Property in P]: unknown } | { [Property in P]: (...args: any[]) => any },
   prop: P,
-): boolean {
+): obj is { [Property in P]: (...args) => any } {
   const x = (Object.getOwnPropertyDescriptor(obj, prop) as PropertyDescriptor).value
   return x !== undefined && typeof x === 'function'
 }

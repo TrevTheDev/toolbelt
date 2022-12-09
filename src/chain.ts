@@ -1,8 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable prefer-arrow-callback */
-/* eslint-disable no-use-before-define */
-/* eslint-disable @typescript-eslint/ban-types */
-import { IsStrictAny, LMerge, Lookup, Union } from './typescript utils'
+import { IsStrictAny, Lookup, Union } from './typescript utils'
 
 export const chainNodeType = Symbol('Chain Node')
 
@@ -28,28 +25,11 @@ type ChainNodeGenerics = {
   ResultResolverController: unknown
 }
 
-// type ChainNodePossibleGenerics = Partial<ChainNodeGenerics>
-
-// type ChainNodeGenericsWithInputOutput = Union<
-//   Omit<ChainNodeGenerics, 'Output'>,
-//   { InputOutput: unknown }
-// >
-
-// type NeverChainNodeGenerics = {
-//   [k in keyof ChainNodeGenerics]: never
-// }
-
-// type NeverChainNodeGenericsWithInputOutput = {
-//   [k in keyof ChainNodeGenericsWithInputOutput]: never
-// }
-
-type ChainGenerics = {
+export type ChainGenerics = {
   Input: unknown
   ErrorResolverController: unknown
-  // AccumulatedOutputs: unknown
   AccumulatedErrors: unknown
   AccumulatedResultResolverControllers: unknown
-  // Defaults: ChainNodeGenerics
   LastNode: ChainNodeGenerics
 }
 
@@ -65,22 +45,6 @@ export type Resolver<ResultFn extends ResultCb, ErrorFn extends ErrorCb = never>
       result: ResultFn
       error: ErrorFn
     }
-
-// export type ResolverBase<Output, ResultResolverController, Error, ErrorResolverController> =
-//   Resolver<ResultCb<Output, ResultResolverController>, ErrorCb<Error, ErrorResolverController>>
-
-// type ResolverWrapped<
-//   Chain extends ChainGenerics,
-//   RT = Resolver<
-//     ResultCb<Chain['LastNode']['Output'], Chain['LastNode']['ResultResolverController']>,
-//     ErrorCb<Chain['LastNode']['Error'], Chain['ErrorResolverController']>
-//   >,
-// > = RT
-
-// export type AsyncFn2<Input, ResultCallback extends ResultCb, ErrorCallback extends ErrorCb, R> = (
-//   input: Input,
-//   resolver: Resolver<ResultCallback, ErrorCallback>,
-// ) => R
 
 type AsyncFn<PreviousChain extends ChainGenerics, Chain extends ChainGenerics> = [
   Chain['ErrorResolverController'],
@@ -116,186 +80,77 @@ type AccumulatedErrorCb<Chain extends ChainGenerics> = ErrorCb<
   Chain['ErrorResolverController']
 >
 
-type ResultCall<Chain extends ChainGenerics> = {
-  /* ****************************************************************************************************** */
+export type ResultCallTypes<
+  Chain extends ChainGenerics,
+  T extends [ValidAsyncFn, ...ValidAsyncFn[]],
+  ValidT_ = AsyncFunctionChainArray<T, Chain>,
+  ValidT extends {
+    FirstChain: ChainGenerics
+    LastChain: ChainGenerics
+    AsyncFns: [ValidAsyncFn, ...ValidAsyncFn[]]
+  } = ValidT_ extends {
+    FirstChain: ChainGenerics
+    LastChain: ChainGenerics
+    AsyncFns: [ValidAsyncFn, ...ValidAsyncFn[]]
+  }
+    ? ValidT_
+    : never,
+  NewChain extends ChainGenerics = ValidT['LastChain'],
+  Res extends {
+    NewChain: ChainGenerics
+    ValidatedAsyncFns: [ValidAsyncFn, ...ValidAsyncFn[]]
+    FirstChain: ChainGenerics
+  } = {
+    NewChain: NewChain
+    ValidatedAsyncFns: ValidT['AsyncFns']
+    FirstChain: ValidT['FirstChain']
+  },
+> = Res
+
+export type ResultCall<Chain extends ChainGenerics> = {
   <
     T extends [ValidAsyncFn, ...ValidAsyncFn[]],
-    ValidT extends {
-      LastChain: ChainGenerics
-      AsyncFns: [ValidAsyncFn, ...ValidAsyncFn[]]
-    } = AsyncFunctionChainArray<T, Chain>,
+    RT extends {
+      NewChain: ChainGenerics
+      ValidatedAsyncFns: [ValidAsyncFn, ...ValidAsyncFn[]]
+    } = ResultCallTypes<Chain, T> extends {
+      NewChain: ChainGenerics
+      ValidatedAsyncFns: [ValidAsyncFn, ...ValidAsyncFn[]]
+    }
+      ? ResultCallTypes<Chain, T>
+      : never,
   >(
-    ...asyncFunctions: T & ValidT['AsyncFns']
-  ): ChainNode<ValidT['LastChain']>
-
-  /* ****************************************************************************************************** */
-  // <
-  //   NodeTypes extends ChainNodePossibleGenerics = {},
-  //   UpdateDefaults extends ChainNodePossibleGenerics = {},
-  //   UpdatedDefaults extends ChainNodeGenerics = LMerge<
-  //     Chain['Defaults'],
-  //     UpdateDefaults
-  //   > extends ChainNodeGenerics
-  //     ? LMerge<Chain['Defaults'], UpdateDefaults>
-  //     : never,
-  //   Child extends ChainNodeGenerics = LMerge<UpdatedDefaults, NodeTypes> extends ChainNodeGenerics
-  //     ? LMerge<UpdatedDefaults, NodeTypes>
-  //     : never,
-  //   UpdatedChain extends ChainGenerics = {
-  //     Input: Chain['Input']
-  //     ResultResolverController: Child['ResultResolverController']
-  //     ErrorResolverController: Chain['ErrorResolverController']
-  //     AccumulatedErrors: Chain['AccumulatedErrors'] | Child['Error']
-  //     AccumulatedOutputs: Chain['AccumulatedOutputs'] | Child['Output']
-  //     AccumulatedResultResolverControllers:
-  //       | Chain['AccumulatedResultResolverControllers']
-  //       | Child['ResultResolverController']
-  //     Defaults: UpdatedDefaults
-  //     LastNode: Child
-  //   },
-  // >(
-  //   ...arg: Async extends true
-  //     ? [asyncFunction: AsyncFn<Chain, UpdatedChain>]
-  //     : [syncFunction: (input: Chain['LastNode']['Output']) => Child['Output']]
-  // ): ChainNode<UpdatedChain>
-
-  // /* ****************************************************************************************************** */
-
-  // <
-  //   ResultResolver extends ResultCb,
-  //   ErrorResolver extends ErrorCb,
-  //   Output = Parameters<ResultResolver>[0],
-  //   ResultResolverController = ReturnType<ResultResolver>,
-  //   Error = Parameters<ErrorResolver>[0],
-  //   ErrorResolverController = ReturnType<ErrorResolver>,
-  //   Child extends ChainNodeGenerics = {
-  //     Output: Output
-  //     ResultResolverController: ResultResolverController
-  //     Error: Error
-  //   },
-  //   UpdatedChain extends ChainGenerics = {
-  //     Input: Chain['Input']
-  //     ErrorResolverController: ErrorResolverController
-  //     AccumulatedErrors: Chain['AccumulatedErrors'] | Error
-  //     AccumulatedOutputs: Chain['AccumulatedOutputs'] | Output
-  //     AccumulatedResultResolverControllers:
-  //       | Chain['AccumulatedResultResolverControllers']
-  //       | ResultResolverController
-  //     Defaults: Chain['Defaults']
-  //     LastNode: Child
-  //   },
-  // >(
-  //   asyncFunction: (
-  //     input: Chain['LastNode']['Output'],
-  //     resolver: Resolver<ResultResolver, ErrorResolver>,
-  //   ) => Chain['LastNode']['ResultResolverController'],
-  // ): ChainNode<UpdatedChain>
+    ...asyncFunctions: T & RT['ValidatedAsyncFns']
+  ): ChainNode<RT['NewChain']>
 }
 
-type ValidAsyncFn =
-  // | ((input: any, resolver: Resolver<ResultCb<any, any>, ErrorCb<any, any>>) => unknown)
-  // | ((input: any, resolver: Resolver<ResultCb<any, any>, ErrorCb<any, never>>) => unknown)
-  // | ((input: any, resolver: Resolver<ResultCb<any, any>, never>) => unknown)
-  (input: any, resolver: any) => unknown
+export type ValidAsyncFn = (input: any, resolver: ValidResolver) => unknown
+// | ((input: any, resolver: any) => unknown)
 
-// type ValidAsyncFn2 = ((
-//   input: any,
-//   resolver: Resolver<ResultCb<any, any>, ErrorCb<any, any>>,
-// ) => unknown) &
-//   ((input: any, resolver: Resolver<ResultCb<any, any>, ErrorCb<any, never>>) => unknown) &
-//   ((input: any, resolver: Resolver<ResultCb<any, any>, never>) => unknown) &
-//   ((input: any, resolver: any) => unknown)
+/**
+ * the use of `any` is a hack required due to:
+ * https://stackoverflow.com/questions/74229462/how-to-enforce-type-compliance-on-callback-parameters
+ */
+export type ValidResolver =
+  | {
+      (result: any): any
+      result: (result: any) => any
+      error: (error: any) => any
+    }
+  | {
+      (result: any): any
+      result: (result: any) => any
+    }
+  | any
 
 export type AsyncFunc<
   Input,
   ResultCallback extends ResultCb,
   ErrorCallback extends ErrorCb,
   Returned,
-> = (input: Input, resolver: Resolver<ResultCallback, ErrorCallback>) => Returned
-
-// type InferAsyncFn2<
-//   T extends ValidAsyncFn,
-//   Chain extends ChainGenerics = never,
-//   Input = T extends (input: infer I, ...args) => any ? I : never,
-//   TResolver = T extends (input: any, resolver: infer R) => any ? R : never,
-//   ResultResolver extends ResultCb = TResolver extends { result: infer R extends ResultCb }
-//     ? R
-//     : never,
-//   RType = ReturnType<T>,
-//   Output = Parameters<ResultResolver>[0],
-//   ResultResolverController = ReturnType<ResultResolver>,
-//   ErrorResolver extends ErrorCb = TResolver extends {
-//     error: infer E
-//   }
-//     ? E extends ErrorCb
-//       ? E
-//       : ErrorCb
-//     : never,
-//   Error = Parameters<ErrorResolver>[0],
-//   ErrorResolverController = ReturnType<ErrorResolver>,
-//   ReconstitutedAsyncFunc extends ValidAsyncFn = AsyncFunc<
-//     Input,
-//     ResultResolver,
-//     ErrorResolver,
-//     RType
-//   >,
-//   ConstrainedAsyncFunc extends ValidAsyncFn = AsyncFunc<
-//     Chain['LastNode']['Output'],
-//     ResultResolver,
-//     [ErrorResolver] extends [never] ? never : ErrorCb<Error, Chain['ErrorResolverController']>,
-//     Chain['LastNode']['ResultResolverController']
-//   >,
-//   ValidAsyncFunc extends ValidAsyncFn = [Chain] extends [never]
-//     ? ReconstitutedAsyncFunc
-//     : ReconstitutedAsyncFunc extends ConstrainedAsyncFunc
-//     ? ConstrainedAsyncFunc extends ReconstitutedAsyncFunc
-//       ? T
-//       : never
-//     : never,
-//   NextChain extends ChainGenerics = [Chain] extends [never]
-//     ? {
-//         Input: Input
-//         ErrorResolverController: ErrorResolverController
-//         AccumulatedErrors: Error
-//         // AccumulatedOutputs: Output
-//         AccumulatedResultResolverControllers: RType | ResultResolverController
-//         // Defaults: NeverChainNodeGenerics
-//         LastNode: {
-//           Output: Output
-//           ResultResolverController: ResultResolverController
-//           Error: Error
-//         }
-//       }
-//     : {
-//         Input: Chain['Input']
-//         ErrorResolverController: Chain['ErrorResolverController']
-//         // AccumulatedOutputs: Chain['AccumulatedOutputs'] | Output
-//         AccumulatedErrors: Chain['AccumulatedErrors'] | Error
-//         AccumulatedResultResolverControllers:
-//           | Chain['AccumulatedResultResolverControllers']
-//           | ResultResolverController
-//         // Defaults: Chain['Defaults']
-//         LastNode: {
-//           Output: Output
-//           ResultResolverController: ResultResolverController
-//           Error: Error
-//         }
-//       },
-// > = {
-//   // input: Input
-//   // resolver: TResolver
-//   // resultResolver: ResultResolver
-//   // output: Output
-//   // resultResolverController: ResultResolverController
-//   // errorResolver: ErrorResolver
-//   // error: Error
-//   // errorResolverController: ErrorResolverController
-//   // returnType: RType
-//   // reconstitutedAsyncFunc: ReconstitutedAsyncFunc
-//   // constrainedAsyncFunc: ConstrainedAsyncFunc
-//   validAsyncFunc: ValidAsyncFunc
-//   chain: NextChain
-// }
+  ResolverType extends ValidResolver = Resolver<ResultCallback, ErrorCallback>,
+  RT extends ValidAsyncFn = (input: Input, resolver: ResolverType) => Returned,
+> = RT
 
 type InferAsyncFnBase = {
   Input: unknown
@@ -311,38 +166,38 @@ type InferAsyncFnBase = {
   ConstrainedAsyncFn: ValidAsyncFn
 }
 
-type InferAsyncFn<
+export type InferAsyncFn<
   T extends ValidAsyncFn,
   TResolver = T extends (input: any, resolver: infer R) => any ? R : never,
-  ResultResolver extends ResultCb = TResolver extends { result: infer R extends ResultCb }
+  ResultResolver extends ResultCb<any, any> = TResolver extends {
+    result: infer R extends ResultCb<any, any>
+  }
     ? R
     : never,
-  ErrorResolver extends ErrorCb = TResolver extends {
-    error: infer E extends ErrorCb
+  ErrorResolver extends ErrorCb<any, any> = TResolver extends {
+    error: infer E extends ErrorCb<any, any>
   }
     ? E
     : never,
-  Input = T extends (input: infer I, ...args) => any ? I : never,
+  Input = T extends (input: infer I, ...args: any[]) => any ? I : never,
   ConstrainedAsyncFn extends ValidAsyncFn = [IsStrictAny<TResolver>] extends [never]
     ? AsyncFunc<Input, ResultResolver, ErrorResolver, ReturnType<T>>
     : AsyncFunc<Input, ResultCb<any, any>, ErrorCb<any, any>, ReturnType<T>>,
+  Output = Parameters<ResultResolver>[0],
+  Error = Parameters<ErrorResolver>[0],
 > = {
   Input: Input
   ReturnType: ReturnType<T>
   Resolver: TResolver
   ResultCb: ResultResolver
-  Output: Parameters<ResultResolver>[0]
+  Output: Output
   ResultResolverController: ReturnType<ResultResolver>
   ErrorCb: ErrorResolver
-  Error: Parameters<ErrorResolver>[0]
+  Error: Error
   ErrorResolverController: ReturnType<ErrorResolver>
   ConstrainedAsyncFn: ConstrainedAsyncFn
   AsyncFn: T
 }
-
-// type ZZZZZ = InferAsyncFnS1<
-//   (x: 'a0', resolver: Resolver<(result: 'a1') => 'r1', (err: 'e1') => 'er'>) => 'r0'
-// >
 
 type ConstrainAsyncFn<
   T extends InferAsyncFnBase,
@@ -395,74 +250,9 @@ type InferAccumulatedChainTypes<
     | ResultResolversOnly[keyof ResultResolversOnly]
 }
 
-// type Z00 = InferAsyncFnS1<never>
-// type Z01 = InferAsyncFnS1<(input: string) => void>
-// type Z02 = InferAsyncFnS1<(input: string, resolver: any) => void>
-// type Z03 = InferAsyncFnS1<(input: string, resolver: Resolver<(a: number) => void>) => void>
-// type Z04 = InferAsyncFnS1<
-//   (input: string, resolver: Resolver<(a: number) => void, (a: number) => void>) => void
-// >
-// type Z05 = InferAsyncFnS1<any>
-
-// type ZZ00 = ConstrainAsyncFnBaseOnFirstNode<Z00>
-// type ZZ01 = ConstrainAsyncFnBaseOnFirstNode<Z01>
-// type ZZ02 = ConstrainAsyncFnBaseOnFirstNode<Z02>
-// type ZZ03 = ConstrainAsyncFnBaseOnFirstNode<Z03>
-// type ZZ04 = ConstrainAsyncFnBaseOnFirstNode<Z04>
-// type ZZ05 = ConstrainAsyncFnBaseOnFirstNode<Z05>
-// type InferAsyncFn<
-//   T extends ValidAsyncFn,
-//   TParent extends ValidAsyncFn = never,
-//   InferT extends InferAsyncFnBase = InferAsyncFnS1<T>,
-//   InferTParent extends InferAsyncFnBase = InferAsyncFnS1<TParent>,
-//   ConstrainedAsyncFunc extends ValidAsyncFn = AsyncFunc<
-//     InferTParent['output'],
-//     InferT['resultCb'],
-//     [InferT['errorCb']] extends [never]
-//       ? never
-//       : ErrorCb<InferT['error'], InferTParent['errorResolverController']>,
-//     InferTParent['resultResolverController']
-//   >,
-//   ValidAsyncFunc extends ValidAsyncFn = [TParent] extends [never]
-//     ? InferT['reconstitutedFn']
-//     : InferT['reconstitutedFn'] extends ConstrainedAsyncFunc
-//     ? ConstrainedAsyncFunc extends InferT['reconstitutedFn']
-//       ? T
-//       : never
-//     : never,
-//   NextChain = [TParent] extends [never]
-//     ? InferT['chain']
-//     : {
-//         Input: InferTParent['input']
-//         ErrorResolverController: InferTParent['errorResolverController']
-//         LastNode: {
-//           Output: InferT['output']
-//           ResultResolverController: InferT['resultResolverController']
-//           Error: InferT['error']
-//         }
-//       },
-// > = {
-//   validAsyncFunc: ValidAsyncFunc
-//   chain: NextChain
-// }
-
-// type AsyncFunctionChainArray2<
-//   T extends [ValidAsyncFn, ...ValidAsyncFn[]],
-//   Chain extends ChainGenerics = never,
-//   Tail = T extends [any, ...infer R] ? R : never,
-//   InferredHead extends { chain: ChainGenerics; validAsyncFunc: ValidAsyncFn } = InferAsyncFn<
-//     T[0],
-//     Chain
-//   > extends infer O
-//     ? { [k in keyof O]: O[k] }
-//     : never,
-// > = Tail extends [ValidAsyncFn, ...ValidAsyncFn[]]
-//   ? [InferredHead, ...AsyncFunctionChainArray2<Tail, InferredHead['chain']>]
-//   : [InferredHead]
-
-type AsyncFunctionChainArray<
+export type AsyncFunctionChainArray<
   T extends [ValidAsyncFn, ...ValidAsyncFn[]],
-  Chain extends ChainGenerics = never,
+  Chain extends ChainGenerics,
   InferredT extends [InferAsyncFnBase, ...InferAsyncFnBase[]] = {
     [I in keyof T]: InferAsyncFn<T[I]>
   } extends [InferAsyncFnBase, ...InferAsyncFnBase[]]
@@ -537,203 +327,6 @@ type AsyncFunctionChainArray<
     : never
 }
 
-// type AsyncFunctionChainArray<
-//   T extends [ValidAsyncFn, ...ValidAsyncFn[]],
-//   Chain extends ChainGenerics = never,
-//   Computed1 = AsyncFunctionChainArray2<T, Chain> extends infer A ? { [I in keyof A]: A[I] } : never,
-//   Computed extends {
-//     chain: ChainGenerics
-//     validAsyncFunc: ValidAsyncFn
-//   }[] = Computed1 extends {
-//     chain: ChainGenerics
-//     validAsyncFunc: ValidAsyncFn
-//   }[]
-//     ? Computed1
-//     : never,
-//   AsyncFns = { [I in keyof Computed]: Computed[I]['validAsyncFunc'] },
-//   Last extends { chain: ChainGenerics; validAsyncFunc: ValidAsyncFn } = Computed extends [
-//     ...any,
-//     infer L extends { chain: ChainGenerics; validAsyncFunc: ValidAsyncFn },
-//   ]
-//     ? L
-//     : never,
-//   AsyncFnArray extends [ValidAsyncFn, ...ValidAsyncFn[]] = AsyncFns extends [
-//     ValidAsyncFn,
-//     ...ValidAsyncFn[],
-//   ]
-//     ? AsyncFns
-//     : never,
-//   LastChain extends ChainGenerics = Last['chain'],
-//   FirstChain extends ChainGenerics = Computed[0]['chain'],
-// > = [Chain] extends [never]
-//   ? {
-//       asyncFns: AsyncFnArray
-//       lastChain: LastChain
-//       firstChain: FirstChain
-//       // rootChain: {
-//       //   Input: FirstChain['Input']
-//       //   ErrorResolverController: 'aaab'
-//       //   AccumulatedOutputs: never
-//       //   AccumulatedErrors: never
-//       //   AccumulatedResultResolverControllers: never
-//       //   Defaults: FirstChain['Defaults']
-//       //   LastNode: {
-//       //     Output: FirstChain['Input']
-//       //     ResultResolverController: void
-//       //     Error: any
-//       //   }
-//       // }
-//     }
-//   : { asyncFns: AsyncFnArray; lastChain: LastChain; firstChain: Computed[0]['chain'] }
-
-// type H01 = AsyncFunctionChainArray2<
-//   [
-//     (x: 'a0', resolver: Resolver<(result: 'a1') => 'r1', (err: 'e1') => 'er'>) => 'r0',
-//     (x: 'a1', resolver: Resolver<(result: 'a2') => 'r2'>) => 'r1',
-//     (x: 'a2', resolver: Resolver<(result: 'a3') => 'r3', (err: 'e3') => 'er'>) => 'r2',
-//     (x: 'a3', resolver: Resolver<(result: 'a4') => 'r4', (err: 'e4') => 'er'>) => 'r3',
-//   ],
-//   {
-//     Input: 'a0'
-//     ErrorResolverController: 'er'
-//     AccumulatedErrors: 'addder'
-//     AccumulatedResultResolverControllers: 'addder'
-//     LastNode: {
-//       Output: 'a0'
-//       ResultResolverController: 'r0'
-//       Error: never
-//     }
-//   }
-// >
-// type H02 = AsyncFunctionChainArray2<
-//   [
-//     (x: 'a0', resolver: Resolver<(result: 'a1') => 'r1', (err: 'e1') => 'er'>) => 'r0',
-//     (x: 'a1', resolver: Resolver<(result: 'a2') => 'r2', never>) => 'r1',
-//     (x: 'a2', resolver: Resolver<(result: 'a3') => 'r3', (err: 'e3') => 'er'>) => 'r2',
-//   ]
-// >
-// type H03 = AsyncFunctionChainArray2<
-//   [
-//     (x: 'a0', resolver: Resolver<(result: 'a1') => 'r1', (err: 'e1') => 'er'>) => 'r0',
-//     (x: any, resolver: Resolver<(result: 'a2') => any, never>) => 'r1',
-//     (x: 'a2', resolver: Resolver<(result: 'a3') => 'r3', (err: 'e3') => 'er'>) => 'r2',
-//   ]
-// >
-// type H04 = AsyncFunctionChainArray2<
-//   [
-//     (x: 'a0', resolver: Resolver<(result: 'a1') => 'r1', (err: 'e1') => 'er'>) => 'r0',
-//     (x: any) => 'r1',
-//     (x: 'a2', resolver: Resolver<(result: 'a3') => 'r3', (err: 'e3') => 'er'>) => 'r2',
-//   ]
-// >
-// type H05 = AsyncFunctionChainArray2<
-//   [
-//     (x: 'a0', resolver: Resolver<(result: 'a1') => 'r1', (err: 'e1') => 'er'>) => 'r0',
-//     (x: any, resolver: any) => 'r1',
-//     (x: 'a2', resolver: Resolver<(result: 'a3') => 'r3', (err: 'e3') => 'er'>) => 'r2',
-//   ]
-// >
-// type H06 = AsyncFunctionChainArray2<
-//   [
-//     (x: 'a0', resolver: Resolver<(result: 'a1') => 'r1', (err: 'e1') => 'er'>) => 'r0',
-//     (x: any, resolver: never) => 'r1',
-//     (x: 'a2', resolver: Resolver<(result: 'a3') => 'r3', (err: 'e3') => 'er'>) => 'r2',
-//   ]
-// >
-
-// type ZZZ121 = AsyncFunctionChainArray<
-// [
-//   (x: 'a0', resolver: Resolver<(result: 'a1') => 'r1', (err: 'e1') => 'er'>) => 'r0',
-//   (x: 'a1', resolver: Resolver<(result: 'a2') => 'r2'>) => 'r1',
-//   (x: 'a2', resolver: Resolver<(result: 'a3') => 'r3', (err: 'e3') => 'er'>) => 'r2',
-//   (x: 'a3', resolver: Resolver<(result: 'a4') => 'r4', (err: 'e4') => 'er'>) => 'r3',
-// ],
-//   never
-// >
-
-type ChainLike<Input, ResultResolverController, ErrorResolverController> = {
-  await: [ErrorResolverController] extends [never]
-    ? (input: Input, resultCb: (result: any) => any) => ResultResolverController
-    : (
-        input: Input,
-        resultCb: (result: any) => any,
-        errorCb: (error: any) => ErrorResolverController,
-      ) => ResultResolverController
-}
-
-type InferPartialChainGenericsFromChainLike<
-  Input,
-  ResultResolverController,
-  ErrorResolverController,
-  R,
-  T extends ChainLike<
-    Input,
-    ResultResolverController,
-    ErrorResolverController
-  > = R extends ChainLike<Input, ResultResolverController, ErrorResolverController> ? R : never,
-  AwaitF = T extends { await: infer A } ? A : never,
-  // Input = AwaitF extends (input: infer I, ...args)=>never ? I : never,
-  RCallback = AwaitF extends (input: any, resultCb: infer C) => any ? C : never,
-  Output = RCallback extends (result: infer O) => any ? O : never,
-  ECallback = AwaitF extends (
-    input: any,
-    resultCb: any,
-    errorCb: infer E extends (arg) => any,
-  ) => any
-    ? E
-    : never,
-  AccumulatedErrors = ECallback extends (errors: infer E) => any ? E : never,
-  AccumulatedResultResolverControllers = AwaitF extends (...args) => infer C
-    ? C extends { controller: infer A }
-      ? A
-      : never
-    : never,
-  RT extends ChainGenerics = {
-    Input: Input
-    ErrorResolverController: ErrorResolverController
-    // AccumulatedOutputs: unknown
-    AccumulatedErrors: AccumulatedErrors
-    AccumulatedResultResolverControllers: AccumulatedResultResolverControllers
-    // Defaults: NeverChainNodeGenerics
-    LastNode: {
-      Output: Output
-      Error: unknown
-      ResultResolverController: ResultResolverController
-    }
-  },
-> = RT
-
-type Splice<
-  Chain extends ChainGenerics,
-  RT = <
-    T extends ChainLike<
-      Chain['LastNode']['Output'],
-      Chain['LastNode']['ResultResolverController'],
-      Chain['ErrorResolverController']
-    >,
-    SubChain extends ChainGenerics = InferPartialChainGenericsFromChainLike<
-      Chain['LastNode']['Output'],
-      Chain['LastNode']['ResultResolverController'],
-      Chain['ErrorResolverController'],
-      T
-    >,
-    UpdatedChain extends ChainGenerics = LMerge<
-      Chain,
-      {
-        ErrorResolverController: SubChain['ErrorResolverController']
-        AccumulatedErrors: Chain['AccumulatedErrors'] | SubChain['AccumulatedErrors']
-        // AccumulatedOutputs: Chain['AccumulatedOutputs'] | SubChain['AccumulatedOutputs']
-        AccumulatedResultResolverControllers:
-          | Chain['AccumulatedResultResolverControllers']
-          | SubChain['AccumulatedResultResolverControllers']
-        LastNode: SubChain['LastNode']
-      }
-    >,
-  >(
-    subChain: T,
-  ) => ChainNode<UpdatedChain>,
-> = RT
-
 type Await<
   Chain extends ChainGenerics,
   Type extends 'external' | 'internal',
@@ -757,19 +350,27 @@ type Await<
   }[Type],
 > = RT
 
-type SharedProperties<
+export type SharedProperties<
   Chain extends ChainGenerics,
   RT = {
     type: typeof chainNodeType
     onError(callback: AccumulatedErrorCb<Chain>): ChainNode<Chain>
     await: Await<Chain, 'external'>
-    splice: Splice<Chain>
+    readonly asyncFn: (
+      input: Chain['Input'],
+      resolver: Resolver<
+        (output: Chain['LastNode']['Output']) => Chain['LastNode']['ResultResolverController'],
+        [Chain['ErrorResolverController']] extends [never]
+          ? never
+          : (error: Chain['AccumulatedErrors']) => Chain['ErrorResolverController']
+      >,
+    ) => Chain['AccumulatedResultResolverControllers']
     // sync: ResultCall<Chain, Node, false>
     // input(input: Chain['Input']): PromiseLike<Chain['Output']>
   },
 > = RT
 
-type ChainNode<Chain extends ChainGenerics, RT = ResultCall<Chain> & SharedProperties<Chain>> = RT
+export type ChainNode<Chain extends ChainGenerics> = ResultCall<Chain> & SharedProperties<Chain>
 
 // type ChainFn = {
 //   // /* ******************************************************************************** */
@@ -879,41 +480,36 @@ type ChainNode<Chain extends ChainGenerics, RT = ResultCall<Chain> & SharedPrope
  *****************************************************************************************************************************************************************
  */
 
-// const functionAssign = <T extends Function, S extends Object, R = T & S>(fn: T, obj: S) =>
-//   Object.assign(fn, obj) as R
+let newNode: <PreviousChain extends ChainGenerics, Chain extends ChainGenerics>(
+  asyncFn: AsyncFn<PreviousChain, Chain>,
+  parentAwaitFn: Await<PreviousChain, 'internal'>,
+) => ChainNode<Chain>
 
-// const resultCall = <Chain extends ChainGenerics>(awaitFn: Await<Chain, 'internal'>) => {
-//   const dFn: ResultCall<Chain> = function resultCallFn(asyncFunction) {
-//     return newNode(asyncFunction, (arg, resultCb, errorCb, controller) =>
-//       awaitFn(arg, resultCb, errorCb as unknown as ChainNodeErrorCb<Chain>, controller),
-//     )
-//   }
-//   return dFn
-// }
 function getResultCall<Chain extends ChainGenerics>(awaitFn: Await<Chain, 'internal'>) {
   const resultCall = function resultCallFn<
     T extends [ValidAsyncFn, ...ValidAsyncFn[]],
-    ResultCallTypes extends {
-      FirstChain: ChainGenerics
-      LastChain: ChainGenerics
-      AsyncFns: [ValidAsyncFn, ...ValidAsyncFn[]]
-    } = AsyncFunctionChainArray<T, Chain>,
-    NextChain extends ChainGenerics = ResultCallTypes['FirstChain'],
-    FinalChain extends ChainGenerics = ResultCallTypes['LastChain'],
-    FinalChainNode = ChainNode<FinalChain>,
-  >(...asyncFunctions: T) {
+    RT extends {
+      // FirstChain: ChainGenerics
+      NewChain: ChainGenerics
+      ValidatedAsyncFns: [ValidAsyncFn, ...ValidAsyncFn[]]
+    } = ResultCallTypes<Chain, T> extends {
+      // FirstChain: ChainGenerics
+      NewChain: ChainGenerics
+      ValidatedAsyncFns: [ValidAsyncFn, ...ValidAsyncFn[]]
+    }
+      ? ResultCallTypes<Chain, T>
+      : never,
+  >(...asyncFunctions: T & RT['ValidatedAsyncFns']) {
     if (asyncFunctions.length === 0) throw new Error('async functions required')
-    // const aFns = asyncFunctions as T extends [any, ...infer F]
-    //   ? F extends [ValidAsyncFn, ...ValidAsyncFn[]]
-    //     ? F
-    //     : never
-    //   : never
-    const asyncFn = asyncFunctions.shift() as AsyncFn<Chain, NextChain>
-    const nextNode = newNode<Chain, NextChain>(asyncFn, (arg, resultCb, errorCb, controller) =>
+    const asyncFn = asyncFunctions.shift() as T[0]
+    const nextNode = newNode<Chain, RT['NewChain']>(asyncFn, (arg, resultCb, errorCb, controller) =>
       awaitFn(arg, resultCb, errorCb, controller),
     )
-    const rv = asyncFunctions.length === 0 ? nextNode : nextNode<T>(...(asyncFunctions as any))
-    return rv as unknown as FinalChainNode
+    const rv =
+      asyncFunctions.length === 0
+        ? nextNode
+        : nextNode(...(asyncFunctions as unknown as [ValidAsyncFn, ...ValidAsyncFn[]]))
+    return rv as ChainNode<RT['NewChain']>
   }
   return resultCall as unknown as ResultCall<Chain>
 }
@@ -923,34 +519,51 @@ const addSharedProperties = <Chain extends ChainGenerics>(
   awaitFn: Await<Chain, 'internal'>,
   errorNodeFn: typeof errorNode<Chain>,
 ): ChainNode<Chain> => {
-  const sharedProperties: SharedProperties<Chain> = {
-    type: chainNodeType,
-    await(arg, resultCb, errorCb?) {
-      return awaitFn(
-        arg,
-        resultCb,
-        errorCb ||
-          (() => {
-            throw new Error('error callback made without an error handler being provided')
-          }),
-        { controller: undefined },
-      )
+  const chainNode = Object.defineProperties(fn as ChainNode<Chain>, {
+    type: { value: chainNodeType, writable: false },
+    await: {
+      value: (arg, resultCb, errorCb?) =>
+        awaitFn(
+          arg,
+          resultCb,
+          errorCb ||
+            (() => {
+              throw new Error('error callback made without an error handler being provided')
+            }),
+          { controller: undefined },
+        ),
+      writable: false,
     },
-    onError(errorCb) {
-      return errorNodeFn(awaitFn, errorCb)
+    onError: {
+      value: (errorCb) => errorNodeFn(awaitFn, errorCb),
+      writable: false,
     },
-    splice(subChain) {
-      return (fn as any)((input, resolver) => {
-        subChain.await(
-          input,
-          (result) => resolver.result(result),
-          (error) => resolver.error(error),
-        )
-      })
+
+    asyncFn: {
+      get() {
+        return (
+          input: Chain['Input'],
+          resolver: {
+            result: (
+              resultOut: Chain['LastNode']['Output'],
+            ) => Chain['LastNode']['ResultResolverController']
+            error?: (errors: Chain['AccumulatedErrors']) => Chain['ErrorResolverController']
+          },
+        ) =>
+          chainNode.await(
+            input,
+            (result) => resolver.result(result),
+            (error) =>
+              (
+                resolver.error as (
+                  errors: Chain['AccumulatedErrors'],
+                ) => Chain['ErrorResolverController']
+              )(error),
+          )
+      },
     },
-  }
-  const rv: ChainNode<Chain> = Object.assign(fn, sharedProperties as SharedProperties<Chain>)
-  return rv
+  })
+  return chainNode
 }
 
 const errorNode = <Chain extends ChainGenerics>(
@@ -966,42 +579,42 @@ const errorNode = <Chain extends ChainGenerics>(
   return addSharedProperties<Chain>(getResultCall<Chain>(awaitFn), awaitFn, errorNode)
 }
 
-function newNode<PreviousChain extends ChainGenerics, Chain extends ChainGenerics>(
+newNode = function NewNode<PreviousChain extends ChainGenerics, Chain extends ChainGenerics>(
   asyncFn: AsyncFn<PreviousChain, Chain>,
   parentAwaitFn: Await<PreviousChain, 'internal'>,
 ) {
   const awaitFn: Await<Chain, 'internal'> = (input, resultCb, errorCb, controller) => {
     const execute = (inputArg: Chain['Input'] | PreviousChain['LastNode']['Output']) => {
-      const pins = Object.assign(
-        function PinsFn(resultArg: Chain['LastNode']['Output']) {
-          return pins.result(resultArg)
-        },
-        {
-          result(resultArg: Chain['LastNode']['Output']) {
+      function resolverFn(resultArg: Chain['LastNode']['Output']) {
+        return (resolverFn as ValidResolver).result(resultArg)
+      }
+      Object.defineProperties(resolverFn, {
+        result: {
+          value: (resultArg: Chain['LastNode']['Output']) => {
             controller.controller = undefined
             const res = resultCb(resultArg)
             controller.controller = res
             return res
           },
-          error(errorArg: Chain['LastNode']['Error']) {
+          writable: false,
+        },
+        error: {
+          value: (errorArg: Chain['LastNode']['Error']) => {
             if (errorCb) return errorCb(errorArg)
             throw new Error('error called, but no ErrorCb was provided')
           },
+          writable: false,
         },
-      )
-      return asyncFn(inputArg, pins)
+      })
+
+      return asyncFn(inputArg, resolverFn as ValidResolver)
     }
-    // controller.controller = undefined
-    // if (parentAwaitFn) {
     return parentAwaitFn(
       input,
       execute,
       errorCb as unknown as ChainNodeErrorCb<PreviousChain>,
       controller,
     )
-    // }
-    // controller.controller = execute(input)
-    // return controller
   }
   const x = getResultCall<Chain>(awaitFn)
   const xy = addSharedProperties<Chain>(x, awaitFn, errorNode)
@@ -1010,30 +623,21 @@ function newNode<PreviousChain extends ChainGenerics, Chain extends ChainGeneric
 
 function chain<
   T extends [ValidAsyncFn, ...ValidAsyncFn[]],
+  ValidT_ = AsyncFunctionChainArray<T, never>,
   ValidT extends {
     LastChain: ChainGenerics
     AsyncFns: [ValidAsyncFn, ...ValidAsyncFn[]]
-  } = AsyncFunctionChainArray<T, never>,
+  } = ValidT_ extends {
+    LastChain: ChainGenerics
+    AsyncFns: [ValidAsyncFn, ...ValidAsyncFn[]]
+  }
+    ? ValidT_
+    : never,
 >(...asyncFunctions: T & ValidT['AsyncFns']) {
   const rCall = getResultCall((input, resolver) => resolver(input) as any)
-  const rv = rCall<T>(...(asyncFunctions as any))
-  return rv as ChainNode<ValidT['LastChain']>
+  const rv = rCall(...(asyncFunctions as unknown as [ValidAsyncFn, ...ValidAsyncFn[]]))
+  return rv as unknown as ChainNode<ValidT['LastChain']>
 }
-
-// const x = [] as unknown as [
-//   (x1: 'a0', resolver: Resolver<(result: 'a1') => 'r1', (err: 'e1') => 'er'>) => 'r0',
-//   (x2: 'a1', resolver: Resolver<(result: 'a2') => 'r2'>) => 'r1',
-//   (x3: 'a2', resolver: Resolver<(result: 'a3') => 'r3', (err: 'e3') => 'er'>) => 'r2',
-//   // (x4: 'a3', resolver: Resolver<(result: 'a4') => 'r4', (err: 'e4') => 'er'>) => 'r3',
-// ]
-// const y = [] as unknown as [
-//   (x4: 'a3', resolver: Resolver<(result: 'a4') => 'r4', (err: 'e4') => 'er'>) => 'r3',
-//   (x5: 'a4', resolver: Resolver<(result: 'a5') => 'r5', (err: 'e5') => 'er'>) => 'r4',
-// ]
-
-// const chn = chain(...x)
-
-// const chn2 = chn(...y)
 
 export default chain
 

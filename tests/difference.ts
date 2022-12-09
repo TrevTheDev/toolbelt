@@ -10,7 +10,7 @@ describe('difference & intersection', () => {
     // preserves the order of the first array
     expect(`${difference([8, 9, 3, 1], [3, 8])}`).toEqual('9,1')
   })
-  it.only('intersection', () => {
+  it('intersection', () => {
     const stooges = ['moe', 'curly', 'larry']
     const leaders = ['moe', 'groucho']
     // can find the set intersection of two arrays

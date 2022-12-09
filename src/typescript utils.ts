@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-types */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export type UnknownObject = Record<keyof any, unknown>
@@ -38,9 +39,11 @@ export type JustSignatures<T> = T extends {
   ? { (...args: A1): R1 }
   : void
 
+export type Identity<T> = T extends object ? {} & { [P in keyof T]: T[P] } : T
+
 /**
- * merges T1 with T2.  Kinda like `&` but without the `&`.
- * Gotcha: doesn't merge call signatures or constructors
+ * merges T1 with T2.  `&` but without the `&`.
+ * Gotcha: doesn't merge call signatures or constructors.
  * @example
  * type U = Union<{a: number}, {b: string}>     // {a: number, b: string}
  * type U = Union<{ a: number }, { a: string }> // {a: string}
@@ -49,10 +52,37 @@ export type JustSignatures<T> = T extends {
 export type Union<
   T1 extends UnknownObject,
   T2 extends UnknownObject,
+  // R extends UnknownObject = Identity<T1 & T2>,
   R extends UnknownObject = {
     [K in keyof T2 | keyof T1]: K extends keyof T2 ? T2[K] : K extends keyof T1 ? T1[K] : never
   },
 > = R
+
+/**
+ * merges an array of UnknownObject into a single object.  Recursively uses `Union` - so may
+ * have performance impacts
+ * @example
+ * type U = RecursiveUnion<[{ a: 'a' }, { b?: 'b' }, { c: 'c' }, { d?: 'd' }]>      
+ * // {
+    a: 'a';
+    b?: 'b';
+    c: 'c';
+    d?: 'd';
+}
+ */
+export type RecursiveUnion<
+  T extends [UnknownObject, UnknownObject, ...UnknownObject[]],
+  MergedObject12 extends UnknownObject = Union<T[0], T[1]>,
+  MergedObjects extends UnknownObject = T extends [
+    any,
+    any,
+    ...infer R extends [UnknownObject, ...UnknownObject[]],
+  ]
+    ? [MergedObject12, ...R] extends [UnknownObject, UnknownObject, ...UnknownObject[]]
+      ? RecursiveUnion<[MergedObject12, ...R]>
+      : MergedObject12
+    : MergedObject12,
+> = MergedObjects
 
 /**
  * returns a union of all keys that match the criteria
@@ -304,11 +334,11 @@ type Equals<X, Y> = (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y 
  * type T = TupleElementComparison<[1, 0, 3], [1, 2, 3]> // [1,0,1]
  * type T = TupleElementComparison<[], [1, 2, 3]> // []
  */
-export type TupleElementComparison<T1 extends readonly unknown[], T2 extends readonly unknown[]> = {
+export type TupleElementComparison<T1 extends unknown[], T2 extends unknown[]> = {
   [K in keyof T1]: Equals<T1[K], T2[K & keyof T2]> extends true ? 1 : 0
 }
 
-type TupleToUnionBase<T extends readonly unknown[]> = T extends [infer First, ...infer Rest]
+type TupleToUnionBase<T extends unknown[]> = T extends [infer First, ...infer Rest]
   ? First | TupleToUnionBase<Rest>
   : never
 
@@ -318,7 +348,7 @@ type TupleToUnionBase<T extends readonly unknown[]> = T extends [infer First, ..
  * type T = TupleToUnion< [a: string, b: number, c: void]> // string | number | void
  * type T = TupleToUnion< [a: string, b: number, c: any]> // any
  */
-export type TupleToUnion<T extends readonly unknown[]> = T extends [
+export type TupleToUnion<T extends unknown[]> = T extends [
   infer First,
   infer Second,
   infer Third,
@@ -386,42 +416,42 @@ type UndefIndex<T extends any[], I extends number> = {
  */
 export type SpliceTuple<T extends any[], I extends number> = FilterUndefined<UndefIndex<T, I>>
 
-type TupleSplitHead<T extends any[], N extends number> = T['length'] extends N
-  ? T
-  : T extends [...infer R, any]
-  ? TupleSplitHead<R, N>
-  : never
+// type TupleSplitHead<T extends any[], N extends number> = T['length'] extends N
+//   ? T
+//   : T extends [...infer R, any]
+//   ? TupleSplitHead<R, N>
+//   : never
 
-type TupleSplitTail<T, N extends number, O extends any[] = []> = O['length'] extends N
-  ? T
-  : T extends [infer F, ...infer R]
-  ? TupleSplitTail<[...R], N, [...O, F]>
-  : never
+// type TupleSplitTail<T, N extends number, O extends any[] = []> = O['length'] extends N
+//   ? T
+//   : T extends [infer F, ...infer R]
+//   ? TupleSplitTail<[...R], N, [...O, F]>
+//   : never
 
-type TupleSplit<T extends any[], N extends number> = [TupleSplitHead<T, N>, TupleSplitTail<T, N>]
+// type TupleSplit<T extends any[], N extends number> = [TupleSplitHead<T, N>, TupleSplitTail<T, N>]
 
-type A = SpliceTuple<[1, 2, 3], 0> // [2,3]
-type B = TupleSplit<[a: 1, b: 2, c: 3, d: 4, e: 5], 2> // [1,3]
-type E = TupleSplit<[a: 1, b: 2, c: 3, d: 4, e: 5], 4> // [1,3]
-type C = SpliceTuple<[1, 2, 3], 2> // [1,2]
-type D = SpliceTuple<[1, 2, 3], 3> // [ 1,2,3]
+// type A = SpliceTuple<[1, 2, 3], 0> // [2,3]
+// type B = TupleSplit<[a: 1, b: 2, c: 3, d: 4, e: 5], 2> // [1,3]
+// type E = TupleSplit<[a: 1, b: 2, c: 3, d: 4, e: 5], 4> // [1,3]
+// type C = SpliceTuple<[1, 2, 3], 2> // [1,2]
+// type D = SpliceTuple<[1, 2, 3], 3> // [ 1,2,3]
 
-type TupleSplit3<
-  T extends any[],
-  N extends number,
-  HeadA extends any[] = [],
-  TailA extends any[] = [],
-  FinalHead extends any[] = never,
-  FinalTail extends any[] = never,
-  NewHead extends any[] = T extends [...infer R extends any[], any] ? R : never,
-  NewTail extends any[] = T extends [any, ...infer R extends any[]] ? R : never,
-> = {
-  headOnly: TupleSplit3<NewHead, N, NewHead, never, never, FinalTail>
-  both: TupleSplit3<NewHead, N, NewHead, NewTail, never, never>
-  tailOnly: TupleSplit3<NewHead, N, never, NewTail, FinalHead, never>
-  done: TupleSplit3<[], N, [], [], FinalHead, FinalTail>
-  result: [FinalHead, FinalTail]
-}[[FinalHead] extends [never] ? ([FinalTail] extends [never] ? 'both' : 'tailOnly') : 'result']
+// type TupleSplit3<
+//   T extends any[],
+//   N extends number,
+//   HeadA extends any[] = [],
+//   TailA extends any[] = [],
+//   FinalHead extends any[] = never,
+//   FinalTail extends any[] = never,
+//   NewHead extends any[] = T extends [...infer R extends any[], any] ? R : never,
+//   NewTail extends any[] = T extends [any, ...infer R extends any[]] ? R : never,
+// > = {
+//   headOnly: TupleSplit3<NewHead, N, NewHead, never, never, FinalTail>
+//   both: TupleSplit3<NewHead, N, NewHead, NewTail, never, never>
+//   tailOnly: TupleSplit3<NewHead, N, never, NewTail, FinalHead, never>
+//   done: TupleSplit3<[], N, [], [], FinalHead, FinalTail>
+//   result: [FinalHead, FinalTail]
+// }[[FinalHead] extends [never] ? ([FinalTail] extends [never] ? 'both' : 'tailOnly') : 'result']
 
 /**
  * Whether two function? types are equal -don't understand this
@@ -536,11 +566,24 @@ export type Reverse<Tuple extends any[], Prefix extends any[] = []> = {
   nonEmpty: Tuple extends [infer First, ...infer Next]
     ? Reverse<Next, Prepend<Prefix, [First]>>
     : never
-  infinite: {
-    ERROR: 'Cannot reverse an infinite tuple'
-    CODENAME: 'InfiniteTuple'
-  }
+  infinite: { ERROR: 'Cannot reverse an infinite tuple' }
 }[Tuple extends [any, ...any[]] ? IsFinite<Tuple, 'nonEmpty', 'infinite'> : 'empty']
+
+/**
+ * Reverses the order of the supplied tuple
+ *
+ * @example
+ * type U = ReverseTuple<['a', 'b', 'c']> // ["c", "b", "a"]
+ * type U = ReverseTuple<['a']> // ["a"]
+ */
+export type ReverseTuple<T, Result extends any[] = []> = T extends []
+  ? Result
+  : T extends [infer First, ...infer Rest]
+  ? ReverseTuple<Rest, [First, ...Result]>
+  : Result
+
+export type FlattenType<T> = T extends infer O ? { [K in keyof O]: O[K] } : never
+export type SetExtendsType<T, Type> = T extends Type ? T : never
 
 /**
  * @example

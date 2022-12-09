@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { asyncCoupler, customAsyncCoupler } from '../src/index'
+import { asyncCoupler, asyncCouplerWorkAround } from '../src/index'
 
 // import type { AsyncCoupler } from '../src/index'
 
@@ -7,6 +7,43 @@ import { asyncCoupler, customAsyncCoupler } from '../src/index'
 const noop = () => {}
 
 describe('asyncCoupler', () => {
+  it('example usage', () =>
+    new Promise((done) => {
+      // default asyncCouper has `addOutgoingCallback` and `addIncomingCallback` methods
+      const coupler = asyncCoupler<(result: number) => void>()
+      coupler.addOutgoingCallback((incomingCb) => incomingCb(1))
+      coupler.addIncomingCallback(
+        (result) => console.log(result), // 1
+      )
+
+      // renaming methods
+      const cCoupler = asyncCoupler<
+        (input: number) => void,
+        {
+          outgoingCallbackName: 'addA'
+          incomingCallbackName: 'addB'
+        }
+      >({
+        outgoingCallbackName: 'addA',
+        incomingCallbackName: 'addB',
+      })
+      cCoupler.addA((incomingCb) => incomingCb(1))
+      cCoupler.addB((result) => {
+        console.log(result) // 1
+        done(undefined)
+      })
+
+      // a workaround to reduce typing
+      const cCouplerA = asyncCouplerWorkAround({
+        outgoingCallbackName: 'addA',
+        incomingCallbackName: 'addB',
+      } as const)<(input: number) => void>()
+      cCouplerA.addA((incomingCb) => incomingCb(1))
+      cCouplerA.addB((result) => {
+        console.log(result) // 1
+        done(undefined)
+      })
+    }))
   it('asyncCoupler', () =>
     new Promise((done) => {
       let i = 1
@@ -54,8 +91,16 @@ describe('asyncCoupler', () => {
   it('customised methods', () =>
     new Promise((done) => {
       let i = 1
-      // eslint-disable-next-line max-len
-      const coupler = customAsyncCoupler<'addA', 'addB', (result: number) => void>('addA', 'addB')
+      const coupler = asyncCoupler<
+        (input: number) => void,
+        {
+          outgoingCallbackName: 'addA'
+          incomingCallbackName: 'addB'
+        }
+      >({
+        outgoingCallbackName: 'addA',
+        incomingCallbackName: 'addB',
+      })
       coupler.addA((incomingCb) => {
         console.log(`i: ${i}`)
         i += 1

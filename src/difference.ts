@@ -1,4 +1,4 @@
-import type { TupleToUnion, UnionToTuple } from './typescript utils'
+import type { RemoveReadOnlyFromArray, TupleToUnion, UnionToTuple } from './typescript utils'
 
 type MergeInfiniteTuples<
   T extends unknown[],
@@ -9,8 +9,8 @@ type MergeInfiniteTuples<
 > = Res
 
 /**
- * Finds the set (i.e. no duplicates) of all elements in the first array not
- * contained in the second array.
+ * Finds the set of all elements in the first array not
+ * contained in the second array (i.e. non duplicated items).
  *
  * Note: typing is not battle tested and so unexpected edge cases may exist
  *
@@ -18,9 +18,9 @@ type MergeInfiniteTuples<
  * @param {Array} second The second list.
  * @return {Array} The elements in `first` that are not in `second`.
  * @example
- * const u = difference([1, 2, 3, 4] as const, [7, 6, 5, 4, 3] as const) //=> [1,2]
- * const u = difference([7, 6, 5, 4, 3] as const, [1, 2, 3, 4] as const); //=> [7,6,5]
- * const u = difference([7, 6, 5, 4, 3], [1, 2, 3, 4]) ; //=> [7,6,5] type: number[]
+ * const u1 = difference([1, 2, 3, 4] as const, [7, 6, 5, 4, 3] as const) //=> [1,2]
+ * const u2 = difference([7, 6, 5, 4, 3] as const, [1, 2, 3, 4] as const); //=> [7,6,5]
+ * const u3 = difference([7, 6, 5, 4, 3], [1, 2, 3, 4]) ; //=> [7,6,5] type: number[]
  */
 export function difference<T extends unknown[], S extends unknown[]>(
   first: T,
@@ -29,11 +29,11 @@ export function difference<T extends unknown[], S extends unknown[]>(
 export function difference<T extends unknown[], S extends readonly unknown[]>(
   first: T,
   second: S,
-): MergeInfiniteTuples<T, TupleToUnion<S>[]>
+): MergeInfiniteTuples<T, TupleToUnion<RemoveReadOnlyFromArray<S>>[]>
 export function difference<T extends readonly unknown[], S extends unknown[]>(
   first: T,
   second: S,
-): MergeInfiniteTuples<TupleToUnion<T>[], S>
+): MergeInfiniteTuples<TupleToUnion<RemoveReadOnlyFromArray<T>>[], S>
 export function difference<T extends readonly unknown[], S extends readonly unknown[]>(
   first: T,
   second: S,
@@ -43,8 +43,7 @@ export function difference(first, second) {
 }
 
 /**
- * Combines two arrays into a set composed of the unique
- * elements common to both lists.
+ * Given two arrays, intersection returns a set composed of the elements common to both arrays.
  *
  * Note: typing is not battle tested and so unexpected edge cases may exist
  *
@@ -66,11 +65,11 @@ export function intersection<T extends unknown[], S extends unknown[]>(
 export function intersection<T extends readonly unknown[], S extends unknown[]>(
   first: T,
   second: S,
-): MergeInfiniteTuples<TupleToUnion<T>[], S>
+): MergeInfiniteTuples<TupleToUnion<RemoveReadOnlyFromArray<T>>[], S>
 export function intersection<T extends unknown[], S extends readonly unknown[]>(
   first: T,
   second: S,
-): MergeInfiniteTuples<T, TupleToUnion<S>[]>
+): MergeInfiniteTuples<T, TupleToUnion<RemoveReadOnlyFromArray<S>>[]>
 export function intersection<T extends readonly unknown[], S extends readonly unknown[]>(
   first: T,
   second: S,
