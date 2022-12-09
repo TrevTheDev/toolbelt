@@ -4,6 +4,9 @@
 /.vscode/
 /coverage/
 /tmp/
+/src/archive
+/tests/archive
+/tests apluspromises
 package-lock.json
 *tmp*
 pnpm-lock.yaml
