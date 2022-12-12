@@ -9,7 +9,7 @@ const chainNode =
   }
 
 describe('compose', () => {
-  it('example', () => {
+  it('example2', () => {
     const fn = compose(
       (a: string) => `${a}:A`,
       (a: string) => `${a}:B`,

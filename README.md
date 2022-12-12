@@ -1,36 +1,43 @@
-- [Chain Overview](#chain-overview)
-  - [Example Basic Usage](#example-basic-usage)
-  - [chain](#chain)
-    - [ValidAsyncFn](#validasyncfn)
-    - [Resolver](#resolver)
-    - [ChainNode](#chainnode)
-    - [AwaitedChainController](#awaitedchaincontroller)
-- [EnhancedChain Overview](#enhancedchain-overview)
-  - [Example Usage](#example-usage)
-  - [enhancedChain](#enhancedchain)
-    - [EnhanceChainOptions](#enhancechainoptions)
-    - [EnhancedChainNode](#enhancedchainnode)
-- [Compose Overview](#compose-overview)
-  - [Example Usage](#example-usage-1)
-- [Compositor Overview](#compositor-overview)
-  - [Example Usage](#example-usage-2)
-  - [compositor](#compositor)
-- [AsyncCoupler Overview](#asynccoupler-overview)
-  - [Example Usage](#example-usage-3)
-- [AsyncFnsInParallel](#asyncfnsinparallel)
-  - [Example Usage](#example-usage-4)
-    - [asyncFnsInParallel](#asyncfnsinparallel-1)
-    - [AsyncFnsInParallelController](#asyncfnsinparallelcontroller)
-    - [AsyncFnResolver](#asyncfnresolver)
-- [Difference](#difference)
-  - [Example Usage](#example-usage-5)
-- [Intersection](#intersection)
-  - [Example Usage](#example-usage-6)
-- [EnhancedMap](#enhancedmap)
-- [Other utilities](#other-utilities)
+# Toolbelt
 
+A set of useful utilities and tools.
 
-# Chain Overview
+## Table Of Contents
+
+- [Toolbelt](#toolbelt)
+  - [Table Of Contents](#table-of-contents)
+  - [Chain Overview](#chain-overview)
+    - [Example Basic Usage](#example-basic-usage)
+    - [chain](#chain)
+      - [AsyncFn](#asyncfn)
+      - [Resolver](#resolver)
+      - [ChainNode](#chainnode)
+      - [AwaitedChainController](#awaitedchaincontroller)
+  - [EnhancedChain Overview](#enhancedchain-overview)
+    - [Example Usage](#example-usage)
+    - [enhancedChain](#enhancedchain)
+      - [EnhanceChainOptions](#enhancechainoptions)
+      - [EnhancedChainNode](#enhancedchainnode)
+  - [Compose Overview](#compose-overview)
+    - [Example Usage](#example-usage-1)
+  - [Compositor Overview](#compositor-overview)
+    - [Example Usage](#example-usage-2)
+    - [compositor](#compositor)
+  - [AsyncCoupler Overview](#asynccoupler-overview)
+    - [Example Usage](#example-usage-3)
+  - [AsyncFnsInParallel](#asyncfnsinparallel)
+    - [Example Usage](#example-usage-4)
+      - [asyncFnsInParallel](#asyncfnsinparallel-1)
+      - [AsyncFnsInParallelController](#asyncfnsinparallelcontroller)
+      - [AsyncFnResolver](#asyncfnresolver)
+  - [Difference](#difference)
+    - [Example Usage](#example-usage-5)
+  - [Intersection](#intersection)
+    - [Example Usage](#example-usage-6)
+  - [EnhancedMap](#enhancedmap)
+  - [Other utilities](#other-utilities)
+
+## Chain Overview
 
 A fast, simple, typed way to chain together asynchronous functions - with the output of each function acting as the input to the subsequent function.
 
@@ -38,7 +45,7 @@ If an error is returned by a function in the chain, that effectively ends any fu
 
 An `await`ed chain returns an `AwaitedChainController` - which can be used to communicate with the currently executing function, including for example implementing a cancel ability.
 
-## Example Basic Usage
+### Example Basic Usage
 
 ```typescript
 import { chain } from '...'
@@ -70,13 +77,13 @@ fooBarChain.await('start' as const, (result) => {
 })
 ```
 
-## chain
+### chain
 
 ``` typescript
-chain( ...asyncFunctions: [ValidAsyncFn, ...ValidAsyncFn[]] ) => ChainNode
+chain( ...asyncFns: [AsyncFn, ...AsyncFn[]] ) => ChainNode
 ```
 
-### ValidAsyncFn
+#### AsyncFn
 
 Functions passed to the chain must have the following form:
 
@@ -87,9 +94,9 @@ Functions passed to the chain must have the following form:
 ) => any             // ResultResolverController
 ```
 
-### Resolver
+#### Resolver
 
-The `Resolver` is a function object passed to the `ValidAsyncFn` and it's used to return either a `result` or an `error`:
+The `Resolver` is a function object passed to the `AsyncFn` and it's used to return either a `result` or an `error`:
 
 ```typescript
 {
@@ -103,7 +110,7 @@ A simple way to type a `Resolver` is using the provided type `Resolver<ResultFn,
 
 ```typescript
 import type { Resolver } from '....'
-const validAsyncFn = (
+const asyncFn = (
     x: string, 
     resolver: Resolver<(output: string)=>void,(error: Error)=>void>
 )=>{
@@ -113,14 +120,14 @@ const validAsyncFn = (
 }
 ```
 
-### ChainNode
+#### ChainNode
 
-Adding `ValidAsyncFn`s to the chain, creates a new `ChainNode`.  ChainNodes can have other ValidAsyncFns added, and can be awaited, or trap upstream errors.
+Adding `AsyncFn`s to the chain, creates a new `ChainNode`.  ChainNodes can have other AsyncFns added, and can be awaited, or trap upstream errors.
 
 ```typescript
 {
-  // function to add additional ValidAsyncFns to the chain
-  ( validAsyncFns: [ValidAsyncFn, ...ValidAsyncFn[]] ): ChainNode
+  // function to add additional AsyncFns to the chain
+  ( asyncFns: [AsyncFn, ...AsyncFn[]] ): ChainNode
   
   // Symbol('Chain Node')
   type: chainNodeType
@@ -138,15 +145,15 @@ Adding `ValidAsyncFn`s to the chain, creates a new `ChainNode`.  ChainNodes can 
     errorCb?: (finalError: any)=>any,
   ): AwaitedChainController
   
-  // converts the chain into a ValidAsyncFn, which can then
+  // converts the chain into a AsyncFn, which can then
   // be spliced, or added into other chains.
   readonly asyncFn: (input:any, resolver: Resolver)=>any
 }
 ```
 
-### AwaitedChainController
+#### AwaitedChainController
 
-An object that contains the `ResultResolverController` of the current asynchronously executing `ValidAsyncFn`.  `ResultResolverControllers` are mostly not used and set to `void`.  However they can be used to provide a mechanism to communicate with the currently executing `ValidAsyncFn` - for example one could implement `cancel` or `currentStatus` functionality.
+An object that contains the `ResultResolverController` of the current asynchronously executing `AsyncFn`.  `ResultResolverControllers` are mostly not used and set to `void`.  However they can be used to provide a mechanism to communicate with the currently executing `AsyncFn` - for example one could implement `cancel` or `currentStatus` functionality.
 
 ```typescript
 {
@@ -154,7 +161,7 @@ An object that contains the `ResultResolverController` of the current asynchrono
 }
 ```
 
-# EnhancedChain Overview
+## EnhancedChain Overview
 
 `EnhancedChain`, is built on top of `Chain` and provides additional functionality including:
 
@@ -167,28 +174,9 @@ And the following options can be specified:
 2. `enforceSingleResolution` - a resolver may be called once - any subsequent calls throw an error. default is `true`
 3. `forceAsync` - all `ValidAsync` calls can be wrapped in `setImmediate` | `nextTick` | `queueMicrotask`  - the default is `none`
 4. `resolveReturnedPromises` any promises returned via a resolver are resolved, before being passed on. default is `true`  - note typing for this not yet properly implement!
-5. `callbacks` - chain execution can be tracked via a range of callbacks:
+5. `callbacks` - chain execution can be tracked via a range of callbacks/
 
-```typescript
-{
-  beforeChainStart?: () => void
-  beforeChainResult?: () => void
-  afterChainResult?: () => void
-  beforeChainError?: () => void
-  afterChainError?: () => void
-
-  beforeChainResolved?: () => void
-  afterChainResolved?: () => void
-
-  beforeNodeStart?: () => void
-  beforeNodeResult?: () => void
-  afterNodeResult?: () => void
-  beforeNodeError?: () => void
-  afterNodeError?: () => void
-}
-```
-
-## Example Usage
+### Example Usage
 
 ```typescript
 import { enhancedChain } from '...'
@@ -222,13 +210,13 @@ eChainyMore.await('start', (result) => {
 })
 ```
 
-## enhancedChain
+### enhancedChain
 
 ```typescript
-enhancedChain( options: EnhanceChainOptions, ...asyncFunctions: ValidAsyncFn[] ) => EnhancedChainNode
+enhancedChain( options: EnhanceChainOptions, ...asyncFns: AsyncFn[] ) => EnhancedChainNode
 ```
 
-### EnhanceChainOptions
+#### EnhanceChainOptions
 
 ```typescript
 {
@@ -236,13 +224,28 @@ enhancedChain( options: EnhanceChainOptions, ...asyncFunctions: ValidAsyncFn[] )
     enforceSingleResolution?: boolean;
     forceAsync?: 'setImmediate' | 'nextTick' | 'queueMicrotask' | 'none';
     resolveReturnedPromises?: boolean;
-    callbacks?: LifecycleCallbacks;
+    callbacks?: {
+      beforeChainStart?: () => void
+      beforeChainResult?: () => void
+      afterChainResult?: () => void
+      beforeChainError?: () => void
+      afterChainError?: () => void
+
+      beforeChainResolved?: () => void
+      afterChainResolved?: () => void
+
+      beforeNodeStart?: () => void
+      beforeNodeResult?: () => void
+      afterNodeResult?: () => void
+      beforeNodeError?: () => void
+      afterNodeError?: () => void
+    };
 }
 ```
 
-### EnhancedChainNode
+#### EnhancedChainNode
 
-expands `ChainNode` by addition the following  methods:
+expands `ChainNode` by addition of the following  methods:
 
 ```typescript
 {
@@ -259,11 +262,11 @@ expands `ChainNode` by addition the following  methods:
 }
 ```
 
-# Compose Overview
+## Compose Overview
 
 Composes multiple functions, into a single function.  Equivalent to `(arg)=>fn3(fn2(fn1(arg)))`
 
-## Example Usage
+### Example Usage
 
 ```typescript
 import { compose } from '...'
@@ -274,11 +277,11 @@ const fn = compose(
 console.log(fn('start')) //`start:A:B`
 ```
 
-# Compositor Overview
+## Compositor Overview
 
 An object to streamline function composition
 
-## Example Usage
+### Example Usage
 
 ```typescript
 import { compositor } from '...'
@@ -308,10 +311,18 @@ fn2.addEffects(
   () => console.log('hello'),
   () => console.log('world'),
 )
-console.log(fn2.call('a')) // returns 'a:b:c:d:e' and logs 'hello' 'world'
+// logs 'hello' 'world' and returns 'a:b:c:d:e'
+console.log(fn2.call('a'))
+
+// insertPlaceholder creates a placeholder for a function
+// which can later be provided
+// useful if the function changes between calls.
+const setFn = fn2.insertPlaceholder(undefined as unknown as (arg: 'a:b:c:d:e') => 'a:b:c:d:e:f')
+// logs 'hello' 'world' and returns 'a:b:c:d:e:f'
+console.log(setFn((input: 'a:b:c:d:e') => `${input}:f` as 'a:b:c:d:e:f')('a'))
 ```
 
-## compositor
+### compositor
 
 ```typescript
 {
@@ -328,7 +339,7 @@ console.log(fn2.call('a')) // returns 'a:b:c:d:e' and logs 'hello' 'world'
 }
 ```
 
-# AsyncCoupler Overview
+## AsyncCoupler Overview
 
 Enables the coupling of two async callbacks: `incomingCallback` and `outgoingCallback` - which methods can be renamed as require. The callbacks may be added in any sequence and are enqueued.
 
@@ -336,7 +347,7 @@ Once both callbacks have been added: `outgoingCallback(incomingCallback)` is cal
 
 `asyncCouplerWorkAround` provides a DRY'er way to specify the typings.
 
-## Example Usage
+### Example Usage
 
 ``` typescript
 // default asyncCoupler has `addOutgoingCallback` and `addIncomingCallback` methods
@@ -375,7 +386,7 @@ cCouplerA.addB((result) => {
 })
 ```
 
-# AsyncFnsInParallel
+## AsyncFnsInParallel
 
 AsyncFnsInParallel executes asynchronous functions in parallel.  Similar to, but simpler than `Promise.all`and more performant.
 
@@ -385,7 +396,7 @@ Asynchronous functions take the form:
 ( input: any, resolver: AsyncFnResolver )=>controller
 ````
 
-## Example Usage
+### Example Usage
 
 ```typescript
 import { asyncFnsInParallel } from '...'
@@ -402,7 +413,7 @@ parallelFns.await(1, (results) => {
 })
 ```
 
-### asyncFnsInParallel
+#### asyncFnsInParallel
 
 ```typescript
 asyncFnsInParallel( ...asyncFns: [AsyncFnAny, ...AsyncFnAny[]]) =>{
@@ -415,26 +426,29 @@ asyncFnsInParallel( ...asyncFns: [AsyncFnAny, ...AsyncFnAny[]]) =>{
 }
 ```
 
-### AsyncFnsInParallelController
+#### AsyncFnsInParallelController
 
 ```typescript
 { 
     state:  'awaited' | 'halted' | 'done' | 'error'
+    // all controllers that are not undefined.
     controllers: Controllers[]
     resultQueue: [...results:any[]][]
     errorQueue: [...errorArgs:any[]][]
     controllerQueue: Controllers[]
+    // halts the AsyncFnsInParallel and no resultCb or errorCb will be made
+    // useful if one wants to cancel the `AsyncFnsInParallel`.
     halt():void
 }
 ```
 
-### AsyncFnResolver
+#### AsyncFnResolver
 
 A simple way to type a `Resolver` is using the provided type `AsyncFnResolver<ResultFn, ErrorFn>` - note `ErrorFn` is optional e.g.:
 
 ```typescript
 import type { Resolver } from '....'
-const validAsyncFn = (
+const AsyncFn = (
     x: string, 
     resolver: AsyncFnResolver<(output: string)=>void,(error: Error)=>void>
 )=>{
@@ -444,13 +458,13 @@ const validAsyncFn = (
 }
 ```
 
-# Difference
+## Difference
 
 Finds the set of all elements in the first array not contained in the second array (i.e. non duplicated items).
 
 Note: typing is not battle tested and so unexpected edge cases may exist
 
-## Example Usage
+### Example Usage
 
 ```typescript
 const u1 = difference([1, 2, 3, 4] as const, [7, 6, 5, 4, 3] as const) //=> [1,2]
@@ -458,13 +472,13 @@ const u2 = difference([7, 6, 5, 4, 3] as const, [1, 2, 3, 4] as const); //=> [7,
 const u3 = difference([7, 6, 5, 4, 3], [1, 2, 3, 4]) ; //=> [7,6,5] type: number[]
 ```
 
-# Intersection
+## Intersection
 
 Given two arrays, intersection returns a set composed of the elements common to both arrays.
 
 Note: typing is not battle tested and so unexpected edge cases may exist
 
-## Example Usage
+### Example Usage
 
 ```typescript
 const u1 = intersection([1, 2, 3, 4] as const, [7, 6, 5, 4, 3] as const) //=> [3,4]
@@ -475,7 +489,7 @@ const u5 = intersection([7, 6, 5, 4, 3] as const, [1, 2, 3, 4, 'a']) //=> [3,4] 
 const u6 = intersection([7, 6, 5, 4, 3], [1, 2, 3, 4, 'a']) //=> [3,4] type: (string | number)[]
 ```
 
-# EnhancedMap
+## EnhancedMap
 
 Enhances javascript's `map` function
 
@@ -523,38 +537,38 @@ Enhances javascript's `map` function
 }
 ```
 
-# Other utilities
+## Other utilities
 
-reverseForEach
+- reverseForEach
 
-createUid
+- createUid
 
-times
+- times
 
-runFunctionOnlyOnce
+- runFunctionOnlyOnce
 
-curriedRunFunctionsOnlyOnce
+- curriedRunFunctionsOnlyOnce
 
-methodOnlyOnce
+- methodOnlyOnce
 
-validateFn
+- validateFn
 
-requireValue
+- requireValue
 
-validObjects
+- validObjects
 
-callbackTee
+- callbackTee
 
-capitaliseWords
+- capitaliseWords
 
-capitalise
+- capitalise
 
-isObjectAndHasExecutableProperty
+- isObjectAndHasExecutableProperty
 
-isGetter
+- isGetter
 
-isSetter
+- isSetter
 
-isValue
+- isValue
 
-isFunction
+- isFunction

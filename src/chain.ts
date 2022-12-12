@@ -124,9 +124,6 @@ export type ResultCall<Chain extends ChainGenerics> = {
   ): ChainNode<RT['NewChain']>
 }
 
-export type ValidAsyncFn = (input: any, resolver: ValidResolver) => unknown
-// | ((input: any, resolver: any) => unknown)
-
 /**
  * the use of `any` is a hack required due to:
  * https://stackoverflow.com/questions/74229462/how-to-enforce-type-compliance-on-callback-parameters
@@ -142,6 +139,9 @@ export type ValidResolver =
       result: (result: any) => any
     }
   | any
+
+export type ValidAsyncFn = (input: any, resolver: ValidResolver) => unknown
+// | ((input: any, resolver: any) => unknown)
 
 export type AsyncFunc<
   Input,
@@ -426,48 +426,6 @@ export type ChainNode<Chain extends ChainGenerics> = ResultCall<Chain> & SharedP
 //       Chain
 //     >,
 //   ): ChainNode<Chain>
-//   // /* ****************************************************************************************************** */
-//   // <
-//   //   Input,
-//   //   NodeReturnType,
-//   //   ResCb extends ResultCb,
-//   //   ErrCb extends ErrorCb,
-//   //   Output = Parameters<ResCb>[0],
-//   //   ResultResolverController = ReturnType<ResCb>,
-//   //   Error = Parameters<ErrCb>[0],
-//   //   ErrorResolverController = ReturnType<ErrCb>,
-//   // >(
-//   //   asyncFunction: (input: Input, resolver: Resolver<ResCb, ErrCb>) => NodeReturnType,
-//   // ): ChainNode<{
-//   //   Input: Input
-//   //   ErrorResolverController: ErrorResolverController
-//   //   AccumulatedErrors: Error
-//   //   AccumulatedOutputs: Output
-//   //   AccumulatedResultResolverControllers: NodeReturnType | ResultResolverController
-//   //   Defaults: {
-//   //     Output: never
-//   //     Error: never
-//   //     ResultResolverController: never
-//   //   }
-//   //   LastNode: {
-//   //     Output: Output
-//   //     ResultResolverController: ResultResolverController
-//   //     Error: Error
-//   //   }
-//   // }>
-
-//   /* ****************************************************************************************************** */
-
-//   <
-//     T extends [ValidAsyncFn, ...ValidAsyncFn[]],
-//     ValidT extends {
-//       lastChain: ChainGenerics
-//       asyncFns: [ValidAsyncFn, ...ValidAsyncFn[]]
-//     } = AsyncFunctionChainArray<T, never>,
-//   >(
-//     ...asyncFunctions: T & ValidT['asyncFns']
-//   ): ChainNode<ValidT['lastChain']>
-// }
 
 /* ***************************************************************************************************************************************************************
  *****************************************************************************************************************************************************************
@@ -621,6 +579,43 @@ newNode = function NewNode<PreviousChain extends ChainGenerics, Chain extends Ch
   return xy
 }
 
+/**
+ * A fast, simple, typed way to chain together asynchronous functions - with the output of each function acting as the input to the subsequent function.
+ * If an error is returned by a function in the chain, that effectively ends any further processing of the chain.
+ * An `await`ed chain returns an `AwaitedChainController` - which can be used to communicate with the 
+ * currently executing function, including for example implementing a cancel ability.
+ * 
+ * ### Example Basic Usage
+
+```typescript
+// function to generate dummy asynchronous functions
+const addChar =
+  <T extends string, C extends string>(c: C) =>
+  (x: T, resolver: Resolver<(result: `${C}:${T}`) => void>) =>
+    resolver(`${c}:${x}` as `${C}:${T}`)
+
+// adds three asynchronous functions to the chain
+const fooChain = chain(
+  addChar<'start', 'A'>('A'),
+  addChar<'A:start', 'B'>('B'),
+  addChar<'B:A:start', 'C'>('C'),
+)
+// adds a further three asynchronous functions to the chain
+const fooBarChain = fooChain(
+  addChar<'C:B:A:start','A'>('A'),
+  addChar<'A:C:B:A:start','B'>('B'),
+  addChar<'B:A:C:B:A:start','C'>('C'),
+)
+// awaits chain of asynchronous functions
+fooBarChain.await('start' as const, (result) => {
+  expect(result).toEqual('C:B:A:C:B:A:start')
+  done(undefined)
+})
+```
+
+ * @param asyncFunctions 
+ * @returns a potentially asynchronous function
+ */
 function chain<
   T extends [ValidAsyncFn, ...ValidAsyncFn[]],
   ValidT_ = AsyncFunctionChainArray<T, never>,

@@ -69,7 +69,7 @@ const modifyAnyThrownErrors = (fn: () => void, modifiedErrorMsg: string) => {
 }
 
 /**
- * Enables the coupling of two async callbacks: `incomingCallback` and `outgoingCallback` - which can be renamed
+ * Enables the coupling of two async callbacks: `incomingCallback` and `outgoingCallback`.  These can be renamed
  * as require. The callbacks may be added in any sequence and are enqueued.
  * Once both callbacks have been added: `outgoingCallback(incomingCallback)` is called
  * optionally, instead of FIFO, a manual index may be specified causing callbacks to be made in index order

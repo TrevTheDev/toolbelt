@@ -10,7 +10,7 @@ const chainNode =
   }
 
 describe('compositor', () => {
-  it('example', () => {
+  it.only('example', () => {
     // chains functions together
     const fn = compositor(
       (input: 'a') => `${input}:b` as 'a:b',
@@ -36,7 +36,15 @@ describe('compositor', () => {
       () => console.log('hello'),
       () => console.log('world'),
     )
-    console.log(fn2.call('a')) // returns 'a:b:c:d:e' and logs 'hello' 'world'
+    // logs 'hello' 'world' and returns 'a:b:c:d:e'
+    console.log(fn2.call('a'))
+    
+    // insertPlaceholder creates a placeholder for a function
+    // which can later be provided
+    // useful if the function changes between calls.
+    const setFn = fn2.insertPlaceholder(undefined as unknown as (arg: 'a:b:c:d:e') => 'a:b:c:d:e:f')
+    // logs 'hello' 'world' and returns 'a:b:c:d:e:f'
+    console.log(setFn((input: 'a:b:c:d:e') => `${input}:f` as 'a:b:c:d:e:f')('a'))
   })
   it('basic usage', () => {
     const y1 = compositor(
@@ -62,7 +70,7 @@ describe('compositor', () => {
     const z = noFnsCompositor.call('hello' as const)
     expect(z).toEqual('hello')
   })
-  it.only('insertPlaceholder', () => {
+  it('insertPlaceholder', () => {
     const y1 = compositor(chainNode('start' as const, 'Ra' as const))
     const setPlaceholder = y1.insertPlaceholder(undefined as unknown as (x: 'Ra') => string)
     const fn = y1.call

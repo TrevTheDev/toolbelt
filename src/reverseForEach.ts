@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * `forEach` loop but in reverse order
  * @param this - array
