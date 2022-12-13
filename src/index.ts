@@ -26,3 +26,5 @@ export { default as chain } from './chain'
 export type { AwaitedChainController, Resolver, AsyncFunc } from './chain'
 
 export { default as enhancedChain } from './enhancedChain'
+
+export * from './typescript utils'
