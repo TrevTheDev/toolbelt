@@ -1,13 +1,13 @@
-export const enhancedMap = <V>(...iterable: readonly V[]) => {
-  const map = new Map<number, V>()
+export function enhancedMap<V, K>(...iterable: readonly V[]) {
+  const map = new Map<K, V>()
   let itemsAdded = 0
   const iFace = {
     /**
      * adds an item and an optional `key` can be supplied, otherwise insertion order is used.
      * @returns a function that removes the added item from the map.
      */
-    add(item: V, key?: number) {
-      const idx = key || itemsAdded
+    add(item: V, key?: K) {
+      const idx = (key || itemsAdded) as K
       if (map.get(idx)) throw new Error(`item with key '${idx}' already exists in map`)
       map.set(idx, item)
       itemsAdded += 1
@@ -34,7 +34,7 @@ export const enhancedMap = <V>(...iterable: readonly V[]) => {
       return result
     },
 
-    set(key: number, value: V) {
+    set(key: K, value: V) {
       map.set(key, value)
       return this
     },
@@ -56,12 +56,12 @@ export const enhancedMap = <V>(...iterable: readonly V[]) => {
      * @param reverseOrder whether items should be mapped in reverse order, default is `false`
      */
     reduce<U>(
-      callbackfn: (previousValue: U, currentValue: V, currentKey: number, index: number) => U,
+      callbackfn: (previousValue: U, currentValue: V, currentKey: K, index: number) => U,
       initialValue: U,
       reverseOrder = false,
     ) {
       const arr = reverseOrder ? [...map.entries()].reverse() : [...map.entries()]
-      return arr.reduce((previousValue: U, currentValue: [number, V], currentIndex: number) => {
+      return arr.reduce((previousValue: U, currentValue: [K, V], currentIndex: number) => {
         const [key, value] = currentValue
         return callbackfn(previousValue, value, key, currentIndex)
       }, initialValue)
@@ -71,7 +71,7 @@ export const enhancedMap = <V>(...iterable: readonly V[]) => {
      * @param callbackfn A function that accepts up to three arguments. The map method calls the callbackfn function one time for each element in the array.
      * @param reverseOrder whether items should be mapped in reverse order, default is `false`
      */
-    map<U>(callbackfn: (value: V, key: number) => U, reverseOrder = false) {
+    map<U>(callbackfn: (value: V, key: K) => U, reverseOrder = false) {
       return this.reduce(
         (previousValue, currentValue, currentKey) => {
           previousValue.push(callbackfn(currentValue, currentKey))
@@ -85,17 +85,17 @@ export const enhancedMap = <V>(...iterable: readonly V[]) => {
     clear() {
       return map.clear()
     },
-    delete(key: number) {
+    delete(key: K) {
       return map.delete(key)
     },
-    forEach(callbackfn: (value: V, key: number) => void, thisArg?: unknown) {
+    forEach(callbackfn: (value: V, key: K) => void, thisArg?: unknown) {
       return
       map.forEach(callbackfn, thisArg)
     },
-    get(key: number) {
+    get(key: K) {
       return map.get(key)
     },
-    has(key: number) {
+    has(key: K) {
       return map.has(key)
     },
     [Symbol.iterator]() {
@@ -121,6 +121,6 @@ export const enhancedMap = <V>(...iterable: readonly V[]) => {
   return iFace
 }
 
-export type EnhancedMap<T> = ReturnType<typeof enhancedMap<T>>
+export type EnhancedMap<T, K = number> = ReturnType<typeof enhancedMap<T, K>>
 
 export default enhancedMap
