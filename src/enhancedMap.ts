@@ -1,4 +1,4 @@
-export function enhancedMap<V, K>(...iterable: readonly V[]) {
+export function enhancedMap<V, K = number>(...iterable: readonly V[]) {
   const map = new Map<K, V>()
   let itemsAdded = 0
   const iFace = {
