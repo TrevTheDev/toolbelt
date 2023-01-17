@@ -113,6 +113,9 @@ export function enhancedMap<V, K = number>(...iterable: readonly V[]) {
     get values() {
       return map.values()
     },
+    /**
+     * @returns the number of elements in the Map.
+     */
     get size() {
       return map.size
     },
