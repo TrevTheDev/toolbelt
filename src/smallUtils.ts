@@ -41,9 +41,9 @@ export function times<U>(
 // irrespective of how many times it is called.
 export function runFunctionOnlyOnce() {
   let called = false
-  return <T extends (...args: any[]) => any>(fn: T) =>
-    (...args: Parameters<T>) => {
-      if (called) return undefined
+  return <P extends any[], R>(fn: (...args: P) => R) =>
+    (...args: P) => {
+      if (called) return false
       called = true
       return fn(...args)
     }
