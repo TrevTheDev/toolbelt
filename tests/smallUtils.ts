@@ -1,8 +1,41 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect } from 'vitest'
-import { capitaliseWords, capitalise, callbackTee, requireValue } from '../src/smallUtils'
+import {
+  capitaliseWords,
+  capitalise,
+  callbackTee,
+  requireValue,
+  times,
+  runFunctionsOnlyOnce,
+} from '../src/smallUtils'
 
 describe('smallUtils', () => {
+  it('basic usage - times', () => {
+    console.log(times(50, (previousResult) => previousResult + 1, 10)) // 60
+  })
+  it('basic usage - runFunctionsOnlyOnce', () => {
+    let x = 1
+    const once = runFunctionsOnlyOnce()
+    const fn1 = once(() => {
+      x += 1
+      console.log(x)
+    }, 'fn1')
+    const fn2 = once(() => {
+      x -= 1
+      console.log(x)
+    }, 'fn2')
+    fn1()
+    expect(fn2).toThrowError() // throws cannot call 'fn2' after calling 'fn1'
+  })
+  it('basic usage - requireValue', () => {
+    const fn = requireValue((x: any) => x)
+    console.log(fn('a'))
+    expect(fn).toThrowError() // throws this function requires a value
+  })
+  it('basic usage - capitalise', () => {
+    console.log(capitalise('cat')) // 'Cat'
+    console.log(capitaliseWords('cat dog')) // 'Cat Dog'
+  })
   it('callbackResolverQueue basic', () => {
     let aCounter = 0
     const cbQueue = callbackTee<[string]>()
@@ -53,7 +86,6 @@ describe('smallUtils', () => {
       expect(aCounter).toEqual(2)
       expect(result).toEqual('A')
     })
-    debugger
     cbQueue.callCallbacks('A') // `1:A` and `2:A`
     expect(() => cbQueue.callCallbacks('B')).toThrowError(
       `cannot call 'callCallbacks' more than once`,
@@ -99,13 +131,7 @@ describe('smallUtils', () => {
     expect(() => fn2()).toThrowError('error')
   })
   it('capitalise', () => {
-    const x = 'string'[capitaliseWords]()
-    expect(x).to.equal(`String`)
-    const y = 'string'[capitalise]()
-    expect(y).to.equal(`String`)
+    expect(capitaliseWords('string string')).toEqual(`String String`)
+    expect(capitalise('string')).to.equal(`String`)
   })
 })
-// const chain = asyncMapChain(getFile, splitFile, searchOnline, consolidateResults, formatResults)
-
-// stream -> new stream -y-> new Conversation      -> process stream
-//                      -n-> existing Conversation -> process stream

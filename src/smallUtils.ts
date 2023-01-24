@@ -37,124 +37,59 @@ export function times<U>(
   return undefined
 }
 
-// returns a function that is only executed on the first call,
-// irrespective of how many times it is called.
-export function runFunctionOnlyOnce() {
-  let called = false
-  return <P extends any[], R>(fn: (...args: P) => R) =>
-    (...args: P) => {
-      if (called) return false
-      called = true
-      return fn(...args)
-    }
-}
-
-// /**
-//  *
-//  * @param errorMsgToThrow - optional error message to throw if called more than once.  Otherwise undefined is returned
-//  * @returns a function that accepts other functions which can then only be called once
-//  */
-// export function curriedRunFunctionOnlyOnce(errorMsgToThrow?: string) {
-//   let called = false
-//   return <T extends (...args) => any>(fn: T) =>
-//     (...args: T extends (...argX: infer R) => any ? R : never) => {
-//       if (called) {
-//         if (errorMsgToThrow) throw new Error(errorMsgToThrow)
-//         return undefined
-//       }
-//       called = true
-//       return fn(...args)
-//     }
-// }
-
-type OneFnErrorCb<Args> = (calledFn: string, args: Args) => never
-type GroupFnErrorCb<Args> = (firstCalledFn_: string, thisCalledFn_: string, args: Args) => never
+type DuplicateCallErrorFn = (calledFn: string, firstCalledFn: string, args: unknown[]) => never
 /**
  *
  * @param errorMsgCb - optional error message callback to throw -
- *                     set to `null` if duplicate calls must simply be ignored.
+ *                     set to `null` if duplicate calls must be ignored.
  *                     set to `undefined` if a default error must be throw (this is the default behavior)
- * @param onlyOneFunction - whether this groups multiple functions, or only one function - default is false.
- *                      if false: `errorMsgCb` type GroupFnErrorCb<Args>
- *                      if true: `errorMsgCb` type OneFnErrorCb<Args>
  * @returns <T extends (...args)=>unknown>(functionName: string)=>T - returned T can only be called once
  *          either throws or returns `undefined` if called more than once
  */
-export const curriedRunFunctionsOnlyOnce = <Arguments extends unknown[]>(
-  errorMsgCb:
-    | ((firstCalledFn: string, thisCalledFn: string, args: Arguments) => never)
-    | ((calledFn: string, args: Arguments) => never)
-    | null
-    | undefined,
-  onlyOneFunction = false,
-) => {
-  let calledFn: string
-  return (fnName: string) =>
-    <Y>(fn: (...args: Arguments) => Y) =>
-    (...args: Arguments) => {
-      if (calledFn) {
-        if (errorMsgCb !== null) {
-          if (errorMsgCb !== undefined) {
-            if (onlyOneFunction) (errorMsgCb as unknown as OneFnErrorCb<Arguments>)(calledFn, args)
-            else {
-              ;(errorMsgCb as unknown as GroupFnErrorCb<Arguments>)(calledFn, fnName, args)
-            }
-          } else if (onlyOneFunction) throw new Error(`cannot call '${calledFn}' more than once`)
-          throw new Error(
-            fnName === calledFn
-              ? `cannot call '${calledFn}' more than once`
-              : `cannot call '${calledFn}' and then call '${fnName}'`,
-          )
-        }
-        return undefined
-      }
+export function runFunctionsOnlyOnce<E extends DuplicateCallErrorFn | null | undefined = never>(
+  errorMsgCb?: E,
+) {
+  let called = false
+  let calledFn = ''
+  let errorFn: DuplicateCallErrorFn | (() => void) = () => undefined
+  if (errorMsgCb === undefined) {
+    errorFn = (calledFn_: string | undefined, firstCalledFn_: string | undefined) => {
+      if (calledFn_ === '') throw new Error(`cannot call function more than once`)
+      if (calledFn_ === firstCalledFn_) throw new Error(`cannot call '${calledFn_}' more than once`)
+      throw new Error(`cannot call '${calledFn_}' after calling '${firstCalledFn_}'`)
+    }
+  } else if (errorMsgCb !== null) errorFn = errorMsgCb
+
+  return <Args extends unknown[], Y>(fn: (...args: Args) => Y, fnName = '') =>
+    ((...args: Args) => {
+      if (called) return errorFn(fnName, calledFn, args)
+      called = true
       calledFn = fnName
       return fn(...args)
-    }
-}
-
-/**
- * creates a new method on 'obj', 'fn' than errors if called more than once.
- * @param obj - any object
- * @param method - the method on the object that can only be called once
- * @param fn - the method's code
- */
-export const methodOnlyOnce = <O, T extends (...args) => unknown>(
-  obj: O,
-  method: string,
-  fn: T,
-) => {
-  let once = false
-  Object.defineProperty(obj, method, {
-    value: (...args) => {
-      if (once) throw new Error(`'${method}' can only be called once`)
-      once = true
-      return fn(...args)
-    },
-  })
+    }) as unknown as [E] extends [never]
+      ? (...args: Args) => Y
+      : E extends null
+      ? (...args: Args) => Y | undefined
+      : (...args: Args) => Y
 }
 
 /**
  * Function wrapper that executes `testFn` with functions args and if it returns true, throws an error via errorCb
  * @param errorCb: (meta?: M, args?: P) => never - function that throws a custom error
- * @param testFn: (args: P, meta?: M) => boolean - function that performs some test and if it returns `true` then `errorCb` is called
+ * @param isValidArgs: (args: P, meta?: M) => boolean - function that performs some test and if it returns `false` then `errorCb` is called
  * @returns (fn: T, meta?: M)=> T - a function that accepts a function `fn` and optional meta data `meta` that may be passed to `errorCb`
  */
-export const validateFn =
-  <
-    T extends (...args: any[]) => unknown,
-    M,
-    P extends unknown[] = T extends (...args: infer A) => unknown ? A : never,
-  >(
-    errorCb: (meta?: M, args?: P) => never,
-    testFn: (args: P, meta?: M) => boolean,
-  ) =>
-  (fn: T, meta?: M) =>
-    ((...args: P) => {
-      if (testFn(args, meta)) errorCb(meta, args)
+export function validateFn<
+  T extends (...args: any[]) => any,
+  M,
+  P extends any[] = T extends (...args: infer A) => any ? A : never,
+>(errorCb: (meta?: M, args?: P) => never, isValidArgs: (args: P, meta?: M) => boolean) {
+  return (fn: T, meta?: M) =>
+    (...args: P) => {
+      if (!isValidArgs(args, meta)) return errorCb(meta, args)
       return fn(...args)
-    }) as T
-//
+    }
+}
 
 /**
  * Function wrapper that throws an error `errorMsg` if arg is undefined, '', null or []
@@ -162,37 +97,23 @@ export const validateFn =
  * @param errorMsg
  * @returns return value of `fn`
  */
-export const requireValue = <
-  T extends (arg: any) => unknown,
-  P = T extends (arg: infer A) => unknown ? A : never,
->(
+export function requireValue<T extends (arg: any) => any>(
   fn: T,
   errorMsg = `this function requires a value`,
-) =>
-  validateFn<T, undefined, [P]>(
+) {
+  type P = T extends (arg: infer A) => any ? A : never
+  return validateFn(
     () => {
       throw new Error(errorMsg)
     },
     (arg: [P]) =>
-      arg[0] === undefined ||
-      arg[0] === null ||
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      arg[0] === '' ||
-      (Array.isArray(arg[0]) && arg[0].length === 0),
+      !(
+        arg[0] === undefined ||
+        arg[0] === null ||
+        arg[0] === '' ||
+        (Array.isArray(arg[0]) && arg[0].length === 0)
+      ),
   )(fn)
-
-type ObjectWithExecutableProperty<P extends string> = { [K in P]: (...args) => unknown }
-
-const validObjects = ['object', 'function']
-export const isObjectAndHasExecutableProperty = <P extends string>(
-  object: unknown,
-  property: P,
-): object is ObjectWithExecutableProperty<P> => {
-  if (object === null || !validObjects.includes(typeof object)) return false
-  const descriptor = Object.getOwnPropertyDescriptor(object, property)
-  if (descriptor === undefined) return false
-  return typeof descriptor.get === 'function' || typeof descriptor.value === 'function'
 }
 
 /**
@@ -201,13 +122,13 @@ export const isObjectAndHasExecutableProperty = <P extends string>(
  *
  * @returns
  */
-const callbackTee_ = <Arguments extends unknown[], ReturnVal>(
+function callbackTee_<Arguments extends unknown[], ReturnVal>(
   options: {
     callInReverseOrder?: boolean
     canCallOnlyOnce?: boolean
-    calledMoreThanOnceErrorCb?: (calledFn: string, args: Arguments) => never
+    calledMoreThanOnceErrorCb?: DuplicateCallErrorFn
   } = {},
-) => {
+) {
   const opts = {
     callInReverseOrder: false,
     canCallOnlyOnce: false,
@@ -220,8 +141,10 @@ const callbackTee_ = <Arguments extends unknown[], ReturnVal>(
   let callFnExecutor = (...args: Arguments) => callFn(...args)
 
   if (opts.canCallOnlyOnce) {
-    const once = curriedRunFunctionsOnlyOnce(opts.calledMoreThanOnceErrorCb, true)('callCallbacks')
-    callFnExecutor = once(callFnExecutor)
+    callFnExecutor = runFunctionsOnlyOnce(opts.calledMoreThanOnceErrorCb)(
+      callFnExecutor,
+      'callCallbacks',
+    )
   }
 
   let callbackAdder = (callback1: (...args: Arguments) => ReturnVal) => {
@@ -284,14 +207,14 @@ const callbackTee_ = <Arguments extends unknown[], ReturnVal>(
  * }
  */
 
-export const callbackTee = <Arguments extends unknown[], ReturnVal = void>(
+export function callbackTee<Arguments extends unknown[], ReturnVal = void>(
   options: {
     callInReverseOrder?: boolean
     canCallOnlyOnce?: boolean
-    calledMoreThanOnceErrorCb?: (calledFn: string, args: Arguments) => never
+    calledMoreThanOnceErrorCb?: DuplicateCallErrorFn
     resolvePerpetually?: boolean
   } = { resolvePerpetually: false },
-) => {
+) {
   const rQueue = callbackTee_<Arguments, ReturnVal>(options)
   if (!options.resolvePerpetually) return rQueue
   if (options.callInReverseOrder)
@@ -311,31 +234,16 @@ export const callbackTee = <Arguments extends unknown[], ReturnVal = void>(
     },
   }
 }
-
-export const capitaliseWords = Symbol('CapitalizeWords')
-export const capitalise = Symbol('Capitalise')
-
-declare global {
-  interface String {
-    [capitaliseWords](separators?: string[]): string
-    [capitalise](): string
-  }
+export function capitalise<T extends string>(stringToCapitalise: T): `${Capitalize<T>}`
+export function capitalise(stringToCapitalise: string) {
+  return stringToCapitalise.charAt(0).toUpperCase() + stringToCapitalise.slice(1)
 }
-// eslint-disable-next-line no-extend-native
-String.prototype[capitaliseWords] = function CapitaliseWords(separators = [' ', '-']) {
+
+export function capitaliseWords(stringToCapitalise: string, separators = [' ', '-']) {
   return separators.reduce(
-    (str, sep) =>
-      str
-        .split(sep)
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(sep),
-    this.toString(),
+    (str, sep) => str.split(sep).map(capitalise).join(sep),
+    stringToCapitalise.toString(),
   )
-}
-
-// eslint-disable-next-line no-extend-native
-String.prototype[capitalise] = function Capitalise() {
-  return this.charAt(0).toUpperCase() + this.slice(1)
 }
 
 export function functionClass<
@@ -368,6 +276,18 @@ export function functionClass<
   }
 
   return fn
+}
+
+type ObjectWithExecutableProperty<P extends string> = { [K in P]: (...args: any[]) => any }
+
+export function isObjectAndHasExecutableProperty<P extends string>(
+  object: unknown,
+  property: P,
+): object is ObjectWithExecutableProperty<P> {
+  if (object === null || !['object', 'function'].includes(typeof object)) return false
+  const descriptor = Object.getOwnPropertyDescriptor(object, property)
+  if (descriptor === undefined) return false
+  return typeof descriptor.get === 'function' || typeof descriptor.value === 'function'
 }
 
 /**

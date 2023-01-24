@@ -2,9 +2,9 @@ export { default as reverseForEach, globalReverseForEach } from './reverseForEac
 export {
   createUid,
   capitalise,
-  runFunctionOnlyOnce,
+  runFunctionsOnlyOnce,
   times,
-  /* curriedRunFunctionOnlyOnce, */ isObjectAndHasExecutableProperty,
+  isObjectAndHasExecutableProperty,
 } from './smallUtils'
 
 export { enhancedMap } from './enhancedMap'
@@ -26,5 +26,7 @@ export { default as chain } from './chain'
 export type { AwaitedChainController, Resolver, AsyncFunc } from './chain'
 
 export { default as enhancedChain } from './enhancedChain'
+
+export { default as outputPins, resultNoneOutputPins, resultErrorOutputPins } from './outputPins'
 
 export * from './typescript utils'
