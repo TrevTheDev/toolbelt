@@ -275,10 +275,17 @@ export type ResultNoneSetter<ResultType, NoneType> = OutputPinSetter<
   { result: [result: ResultType]; none: [none: NoneType] },
   'result'
 >
-export type ResultNone<ResultType, NoneType> = OutputPinGetter<{
-  result: [result: ResultType]
-  none: [none: NoneType]
-}>
+export type ResultNone<
+  ResultType,
+  NoneType,
+  SetPin extends 'result' | 'none' = never,
+> = OutputPinGetter<
+  {
+    result: [result: ResultType]
+    none: [none: NoneType]
+  },
+  SetPin
+>
 
 /**
  * Inspired by the `maybe` monad, this function returns a function object, that can have either a `result` or a `none` set.
@@ -362,10 +369,17 @@ export type ResultErrorSetter<ResultType, ErrorType> = OutputPinSetter<
   { result: [result: ResultType]; error: [error: ErrorType] },
   'result'
 >
-export type ResultError<ResultType, ErrorType> = OutputPinGetter<{
-  result: [result: ResultType]
-  error: [error: ErrorType]
-}>
+export type ResultError<
+  ResultType,
+  ErrorType,
+  SetPin extends 'result' | 'error' = never,
+> = OutputPinGetter<
+  {
+    result: [result: ResultType]
+    error: [error: ErrorType]
+  },
+  SetPin
+>
 
 export function resultError<ResultType, ErrorType>(
   callbacks?: OutputPinCallbacks<{ result: [result: ResultType]; error: [error: ErrorType] }>,
