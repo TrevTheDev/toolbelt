@@ -10,21 +10,17 @@ export type OutputPinGetter<
   RT = Identity<
     {
       readonly setPin: [SetPin] extends [never] ? keyof Pins : SetPin
-    } & {
-      readonly [I in keyof Pins]?: [SetPin] extends [never]
-        ? Pins[I][0]
-        : I extends SetPin
-        ? Pins[I][0]
-        : never
-    } & {
-      [I in keyof Pins as `is${Capitalize<string & I>}`]: () => [SetPin] extends [never]
-        ? boolean
-        : I extends SetPin
-        ? true
-        : false
-    } & {
-      value(): [SetPin] extends [never] ? Pins[keyof Pins][0] : Pins[SetPin][0]
-    }
+    } & [SetPin] extends [never]
+      ? { readonly [I in keyof Pins]?: Pins[I][0] }
+      : { readonly [I in SetPin]: Pins[I][0] } & {
+          [I in keyof Pins as `is${Capitalize<string & I>}`]: () => [SetPin] extends [never]
+            ? boolean
+            : I extends SetPin
+            ? true
+            : false
+        } & {
+          value(): [SetPin] extends [never] ? Pins[keyof Pins][0] : Pins[SetPin][0]
+        }
   > &
     (() => [SetPin] extends [never] ? Pins[keyof Pins][0] : Pins[SetPin][0]),
 > = RT
