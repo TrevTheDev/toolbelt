@@ -7,23 +7,38 @@ export type PinDef = Record<string, [arg: unknown]> // { [pinName: string]: [arg
 export type OutputPinGetter<
   Pins extends PinDef,
   SetPin extends keyof Pins = never,
-  RT = Identity<
-    {
-      readonly setPin: [SetPin] extends [never] ? keyof Pins : SetPin
-    } & [SetPin] extends [never]
-      ? { readonly [I in keyof Pins]?: Pins[I][0] }
-      : { readonly [I in SetPin]: Pins[I][0] } & {
-          [I in keyof Pins as `is${Capitalize<string & I>}`]: () => [SetPin] extends [never]
-            ? boolean
-            : I extends SetPin
-            ? true
-            : false
+  RT = [SetPin] extends [never]
+    ? Identity<
+        { readonly setPin: keyof Pins } & { readonly [I in keyof Pins]?: Pins[I][0] } & {
+          [I in keyof Pins as `is${Capitalize<string & I>}`]: () => boolean
         } & {
-          value(): [SetPin] extends [never] ? Pins[keyof Pins][0] : Pins[SetPin][0]
+          value(): Pins[keyof Pins][0]
         }
-  > &
-    (() => [SetPin] extends [never] ? Pins[keyof Pins][0] : Pins[SetPin][0]),
+      >
+    : Identity<
+        { readonly setPin: SetPin } & { readonly [I in SetPin]: Pins[I][0] } & {
+          [I in keyof Pins as `is${Capitalize<string & I>}`]: () => I extends SetPin ? true : false
+        } & { value(): Pins[SetPin][0] }
+      > &
+        (() => [SetPin] extends [never] ? Pins[keyof Pins][0] : Pins[SetPin][0]),
 > = RT
+
+// Identity<
+//     {
+//       readonly setPin: [SetPin] extends [never] ? keyof Pins : SetPin
+//     } & [SetPin] extends [never]
+//       ? { readonly [I in keyof Pins]?: Pins[I][0] }
+//       : { readonly [I in SetPin]: Pins[I][0] } & {
+//           [I in keyof Pins as `is${Capitalize<string & I>}`]: () => [SetPin] extends [never]
+//             ? boolean
+//             : I extends SetPin
+//             ? true
+//             : false
+//         } & {
+//           value(): [SetPin] extends [never] ? Pins[keyof Pins][0] : Pins[SetPin][0]
+//         }
+//   > &
+//     (() => [SetPin] extends [never] ? Pins[keyof Pins][0] : Pins[SetPin][0]),
 
 export type OutputPinSetter<
   Pins extends PinDef,
@@ -271,17 +286,27 @@ export type ResultNoneSetter<ResultType, NoneType> = OutputPinSetter<
   { result: [result: ResultType]; none: [none: NoneType] },
   'result'
 >
-export type ResultNone<
-  ResultType,
-  NoneType,
-  SetPin extends 'result' | 'none' = never,
-> = OutputPinGetter<
-  {
+
+export type ResultNone<ResultType, NoneType> = {
+  unset: OutputPinGetter<{
     result: [result: ResultType]
     none: [none: NoneType]
-  },
-  SetPin
->
+  }>
+  result: OutputPinGetter<
+    {
+      result: [result: ResultType]
+      none: [none: NoneType]
+    },
+    'result'
+  >
+  none: OutputPinGetter<
+    {
+      result: [result: ResultType]
+      none: [none: NoneType]
+    },
+    'none'
+  >
+}
 
 /**
  * Inspired by the `maybe` monad, this function returns a function object, that can have either a `result` or a `none` set.
@@ -365,17 +390,26 @@ export type ResultErrorSetter<ResultType, ErrorType> = OutputPinSetter<
   { result: [result: ResultType]; error: [error: ErrorType] },
   'result'
 >
-export type ResultError<
-  ResultType,
-  ErrorType,
-  SetPin extends 'result' | 'error' = never,
-> = OutputPinGetter<
-  {
+export type ResultError<ResultType, ErrorType> = {
+  unset: OutputPinGetter<{
     result: [result: ResultType]
     error: [error: ErrorType]
-  },
-  SetPin
->
+  }>
+  result: OutputPinGetter<
+    {
+      result: [result: ResultType]
+      error: [error: ErrorType]
+    },
+    'result'
+  >
+  error: OutputPinGetter<
+    {
+      result: [result: ResultType]
+      error: [error: ErrorType]
+    },
+    'error'
+  >
+}
 
 export function resultError<ResultType, ErrorType>(
   callbacks?: OutputPinCallbacks<{ result: [result: ResultType]; error: [error: ErrorType] }>,
