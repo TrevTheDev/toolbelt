@@ -6,19 +6,27 @@ export type PinDef = Record<string, [arg: unknown]> // { [pinName: string]: [arg
 
 export type OutputPinGetter<
   Pins extends PinDef,
-  SetPin extends keyof Pins = keyof Pins,
+  SetPin extends keyof Pins = never,
   RT = Identity<
     {
-      readonly setPin: SetPin
+      readonly setPin: [SetPin] extends [never] ? keyof Pins : SetPin
     } & {
-      readonly [I in keyof Pins]?: I extends SetPin ? Pins[I][0] : never
+      readonly [I in keyof Pins]?: [SetPin] extends [never]
+        ? Pins[I][0]
+        : I extends SetPin
+        ? Pins[I][0]
+        : never
     } & {
-      [I in keyof Pins as `is${Capitalize<string & I>}`]: () => I extends SetPin ? true : false
+      [I in keyof Pins as `is${Capitalize<string & I>}`]: () => [SetPin] extends [never]
+        ? boolean
+        : I extends SetPin
+        ? true
+        : false
     } & {
-      value(): Pins[SetPin][0]
+      value(): [SetPin] extends [never] ? Pins[keyof Pins][0] : Pins[SetPin][0]
     }
   > &
-    (() => Pins[SetPin][0]),
+    (() => [SetPin] extends [never] ? Pins[keyof Pins][0] : Pins[SetPin][0]),
 > = RT
 
 export type OutputPinSetter<
@@ -263,10 +271,14 @@ export default outputPins
 //   }
 // }
 
-export type ResultNone<ResultType, NoneType> = OutputPinSetter<
+export type ResultNoneSetter<ResultType, NoneType> = OutputPinSetter<
   { result: [result: ResultType]; none: [none: NoneType] },
   'result'
 >
+export type ResultNone<ResultType, NoneType> = OutputPinGetter<{
+  result: [result: ResultType]
+  none: [none: NoneType]
+}>
 
 /**
  * Inspired by the `maybe` monad, this function returns a function object, that can have either a `result` or a `none` set.
@@ -346,10 +358,15 @@ export function resultNone<ResultType, NoneType>(
  *   isError(): boolean
  * }
  */
-export type ResultError<ResultType, ErrorType> = OutputPinSetter<
+export type ResultErrorSetter<ResultType, ErrorType> = OutputPinSetter<
   { result: [result: ResultType]; error: [error: ErrorType] },
   'result'
 >
+export type ResultError<ResultType, ErrorType> = OutputPinGetter<{
+  result: [result: ResultType]
+  error: [error: ErrorType]
+}>
+
 export function resultError<ResultType, ErrorType>(
   callbacks?: OutputPinCallbacks<{ result: [result: ResultType]; error: [error: ErrorType] }>,
 ) {

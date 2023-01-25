@@ -32,7 +32,9 @@ export type {
   OutputPinSetter,
   OutputPinGetter,
   OutputPinCallbacks,
+  ResultNoneSetter,
   ResultNone,
+  ResultErrorSetter,
   ResultError,
 } from './outputPins'
 
