@@ -35,6 +35,9 @@ A set of useful utilities and tools.
   - [Intersection](#intersection)
     - [Example Usage](#example-usage-6)
   - [EnhancedMap](#enhancedmap)
+  - [OutputPins](#outputpins)
+    - [resultError](#resulterror)
+    - [resultNone](#resultnone)
   - [Other utilities](#other-utilities)
 
 ## Chain Overview
@@ -534,6 +537,53 @@ Enhances javascript's `map` function
     readonly values: IterableIterator<V>;
     readonly size: number;
 }
+```
+
+## OutputPins
+
+A function that creates an object which provides convenient ways to route an outcome.
+
+```typescript
+const exampleResultErrorGenerator = outputPins<
+  { result: [result: 'RESULT']; error: [error: Error]; cancel: [cancelReason: unknown] },
+  'result'
+>('result', 'error', 'cancel')
+const fn = (error: boolean) => {
+  const returnResult = exampleResultErrorGenerator()
+  if (false) returnResult.cancel('whatever')
+  return error ? returnResult.error(new Error('error')) : returnResult('RESULT')
+}
+const results = fn(false)
+if (results.isError()) throw results.error
+if (results.isCancel()) throw results.cancel
+console.log(results()) // 'RESULT'
+```
+
+### resultError
+
+Inspired by the `either` monad, this function returns a function object, that can have either a `result` or an `error` set.
+
+```typescript
+const fn = (error: boolean) => {
+  const returnResult = resultError<'RESULT', Error>()
+  return error ? returnResult.error(new Error('error')) : returnResult('RESULT')
+}
+const results = fn(false)
+if (results.isError()) throw results.error
+console.log(results()) // 'RESULT'
+```
+
+### resultNone
+
+Inspired by the `maybe` monad, this function returns a function object, that can have either a `result` or a `none` set.
+
+```typescript
+const fn = (none: boolean) => {
+  const returnResult = resultNone<'RESULT', null>()
+  return none ? returnResult.none(null) : returnResult('RESULT')
+}
+const results = fn(false)
+if (!results.isNone()) console.log(results()) // 'RESULT'
 ```
 
 ## Other utilities

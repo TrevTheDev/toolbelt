@@ -222,14 +222,16 @@ export function callbackTee<Arguments extends unknown[], ReturnVal = void>(
   if (options.canCallOnlyOnce !== true)
     throw new Error(`'canCallOnlyOnce' must be true to use 'resolvePerpetually'`)
 
-  let argCache
+  let set = false
+  let argCache: Arguments
   return {
     callCallbacks(...args: Arguments) {
+      set = true
       argCache = args
       rQueue.callCallbacks(...args)
     },
     addCallback(callback: (...args: Arguments) => ReturnVal) {
-      if (argCache) callback(...argCache)
+      if (set) callback(...argCache)
       else rQueue.addCallback(callback)
     },
   }
