@@ -4,7 +4,7 @@ import { Identity } from './typescript utils'
 
 export type PinDef = Record<string, [arg: unknown]> // { [pinName: string]: [arg: unknown] }
 
-type OutputPinGetter<
+export type OutputPinGetter<
   Pins extends PinDef,
   SetPin extends keyof Pins = keyof Pins,
   RT = Identity<
@@ -21,7 +21,7 @@ type OutputPinGetter<
     (() => Pins[SetPin][0]),
 > = RT
 
-type OutputPinSetter<
+export type OutputPinSetter<
   Pins extends PinDef,
   DefaultPin extends keyof Pins,
   RT = Identity<
@@ -38,7 +38,7 @@ type OutputPinSetter<
     ((...args: Pins[DefaultPin]) => OutputPinGetter<Pins, DefaultPin>),
 > = RT
 
-type OutputPinCallbacks<Pins extends PinDef> = {
+export type OutputPinCallbacks<Pins extends PinDef> = {
   [I in keyof Pins as `on${Capitalize<string & I>}`]?: (
     callback: (...args: Pins[I]) => void,
   ) => void
@@ -263,6 +263,11 @@ export default outputPins
 //   }
 // }
 
+export type ResultNone<ResultType, NoneType> = OutputPinSetter<
+  { result: [result: ResultType]; none: [none: NoneType] },
+  'result'
+>
+
 /**
  * Inspired by the `maybe` monad, this function returns a function object, that can have either a `result` or a `none` set.
  * 
@@ -341,7 +346,7 @@ export function resultNone<ResultType, NoneType>(
  *   isError(): boolean
  * }
  */
-export type ResultErrorOutputPins<ResultType, ErrorType> = OutputPinSetter<
+export type ResultError<ResultType, ErrorType> = OutputPinSetter<
   { result: [result: ResultType]; error: [error: ErrorType] },
   'result'
 >
