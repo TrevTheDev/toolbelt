@@ -33,7 +33,7 @@ describe('outputPins', () => {
       if (false) return returnResult.cancel('CANCEL')
       return error ? returnResult.error(new Error('error')) : returnResult('RESULT')
     }
-    const results = fn(true)
+    const results = fn(false)
     if (results.isError()) throw (results as OutputError).error
     if (results.isCancel()) throw (results as OutputCancel).cancel
     console.log(results()) // 'RESULT'
