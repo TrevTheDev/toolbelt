@@ -94,4 +94,14 @@ describe('outputPins', () => {
     })
     re('RESULT')
   })
+  it('typing check', () => {
+    const fn = (error: boolean): ResultError<'RESULT', Error> => {
+      const returnResult = resultError<'RESULT', Error>()
+      return error ? returnResult.error(new Error('error')) : returnResult('RESULT')
+    }
+    const results = fn(false)
+    if (results.isError()) throw (results as ResultError<'RESULT', Error, 'error'>).error
+    console.log(results()) // 'RESULT'
+    console.log((results as ResultError<'RESULT', Error, 'result'>).result) // 'RESULT'
+  })
 })
