@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { callbackTee, capitalise } from './smallUtils'
-import { Identity, UnionToIntersection } from './typescript utils'
+import { Identity } from './typescript utils'
 
 export type PinDef = Record<string, [arg: unknown]> // { [pinName: string]: [arg: unknown] }
 
@@ -12,10 +12,9 @@ export type OutputPinGetter<
       { readonly setPin: P } & { readonly [I in P]: Pins[I][0] } & {
         [I in keyof Pins as `is${Capitalize<string & I>}`]: () => I extends P ? true : false
       } & { value(): Pins[P][0] }
-    > &
-      (() => UnionToIntersection<Pins[SetPin][0]>)
+    >
   },
-> = Getters[keyof Getters]
+> = Getters[keyof Getters] & (() => Pins[SetPin][0])
 
 // type Z = OutputPinGetter<{
 //   result: [result: 'R']
@@ -423,7 +422,6 @@ export function resultError<ResultType, ErrorType>(
 }
 
 // const Nothing = Symbol('Nothing')
-
 // export const maybe = <T>() => {
 //   const outPins = resultNoneOutputPins<T>()
 //   Object.defineProperties(fn, {
