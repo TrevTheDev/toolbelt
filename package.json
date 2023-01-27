@@ -1,6 +1,6 @@
 {
   "name": "@trevthedev/toolbelt",
-  "version": "0.0.53",
+  "version": "0.0.54",
   "description": "miscellaneous functions and utilities",
   "main": "./build/cjs/index.js",
   "types": "./build/esm/index.d.ts",
