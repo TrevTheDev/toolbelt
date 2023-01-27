@@ -545,18 +545,34 @@ A function that creates an object which provides convenient ways to route an out
 
 ```typescript
 const exampleResultErrorGenerator = outputPins<
-  { result: [result: 'RESULT']; error: [error: Error]; cancel: [cancelReason: unknown] },
+  { result: [result: 'RESULT']; error: [error: Error]; cancel: [cancelReason: 'CANCEL'] },
   'result'
 >('result', 'error', 'cancel')
+type OutputError = OutputPinGetter<
+  { result: [result: 'RESULT']; error: [error: Error]; cancel: [cancelReason: unknown] },
+  'error'
+>
+type OutputCancel = OutputPinGetter<
+  { result: [result: 'RESULT']; error: [error: Error]; cancel: [cancelReason: unknown] },
+  'cancel'
+>
+
+type OutputResult = OutputPinGetter<
+  { result: [result: 'RESULT']; error: [error: Error]; cancel: [cancelReason: unknown] },
+  'result'
+>
 const fn = (error: boolean) => {
   const returnResult = exampleResultErrorGenerator()
-  if (false) returnResult.cancel('whatever')
+  // eslint-disable-next-line no-constant-condition
+  if (false) return returnResult.cancel('CANCEL')
   return error ? returnResult.error(new Error('error')) : returnResult('RESULT')
 }
-const results = fn(false)
-if (results.isError()) throw results.error
-if (results.isCancel()) throw results.cancel
+const results = fn(true)
+if (results.isError()) throw (results as OutputError).error
+if (results.isCancel()) throw (results as OutputCancel).cancel
 console.log(results()) // 'RESULT'
+console.log(results.isResult())
+console.log((results as OutputResult).result)
 ```
 
 ### resultError
@@ -569,8 +585,9 @@ const fn = (error: boolean) => {
   return error ? returnResult.error(new Error('error')) : returnResult('RESULT')
 }
 const results = fn(false)
-if (results.isError()) throw results.error
+if (results.isError()) throw (results as ResultError<'RESULT', Error, 'error'>).error
 console.log(results()) // 'RESULT'
+console.log((results as ResultError<'RESULT', Error, 'result'>).result) // 'RESULT'
 ```
 
 ### resultNone
@@ -578,15 +595,40 @@ console.log(results()) // 'RESULT'
 Inspired by the `maybe` monad, this function returns a function object, that can have either a `result` or a `none` set.
 
 ```typescript
-const fn = (none: boolean) => {
+const fn = (error: boolean) => {
   const returnResult = resultNone<'RESULT', null>()
-  return none ? returnResult.none(null) : returnResult('RESULT')
+  return error ? returnResult.none(null) : returnResult('RESULT')
 }
 const results = fn(false)
-if (!results.isNone()) console.log(results()) // 'RESULT'
+if (results.isNone()) throw new Error('null')
+console.log(results()) // 'RESULT'
+console.log((results as ResultNone<'RESULT', null, 'result'>).result) // 'RESULT'
 ```
 
 ## Other utilities
+
+- didError
+
+  ```typescript
+  const fn = (error: boolean) => {
+    const output = didError<Error>()
+    return error ? output.error(new Error('ERROR')) : output()
+  }
+  const results = fn(true)
+  if (results.isError()) console.log((results as DidError<Error, true>).errorValue()) // Error('ERROR')
+  expect((results as DidError<Error, true>).errorValue()).toBeInstanceOf(Error)
+  ```
+
+- wrapTryCatchInDidError
+
+  ```typescript
+  const fn = wrapTryCatchInDidError((error: boolean) => {
+    if (error) throw new Error('ERROR')
+  })
+  const results = fn(true)
+  if (results.isError()) console.log((results as DidError<Error, true>).errorValue()) // Error('ERROR')
+  expect((results as DidError<Error, true>).errorValue()).toBeInstanceOf(Error)
+  ```
 
 - times
 

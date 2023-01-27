@@ -1,24 +1,44 @@
 import { describe, it, expect } from 'vitest'
-import { outputPins, resultError, resultNone } from '../src/index'
+import {
+  OutputPinGetter,
+  outputPins,
+  ResultError,
+  resultError,
+  ResultNone,
+  resultNone,
+} from '../src/index'
 
 describe('outputPins', () => {
   it('basic usage - outputPins', () => {
     const exampleResultErrorGenerator = outputPins<
-      { result: [result: 'RESULT']; error: [error: Error]; cancel: [cancelReason: unknown] },
+      { result: [result: 'RESULT']; error: [error: Error]; cancel: [cancelReason: 'CANCEL'] },
       'result'
     >('result', 'error', 'cancel')
+    type OutputError = OutputPinGetter<
+      { result: [result: 'RESULT']; error: [error: Error]; cancel: [cancelReason: unknown] },
+      'error'
+    >
+    type OutputCancel = OutputPinGetter<
+      { result: [result: 'RESULT']; error: [error: Error]; cancel: [cancelReason: unknown] },
+      'cancel'
+    >
+
+    type OutputResult = OutputPinGetter<
+      { result: [result: 'RESULT']; error: [error: Error]; cancel: [cancelReason: unknown] },
+      'result'
+    >
     const fn = (error: boolean) => {
       const returnResult = exampleResultErrorGenerator()
       // eslint-disable-next-line no-constant-condition
-      if (false) returnResult.cancel('whatever')
+      if (false) return returnResult.cancel('CANCEL')
       return error ? returnResult.error(new Error('error')) : returnResult('RESULT')
     }
-    const results = fn(false)
-    if (results.isError()) throw results.error
-    if (results.isCancel()) throw results.cancel
+    const results = fn(true)
+    if (results.isError()) throw (results as OutputError).error
+    if (results.isCancel()) throw (results as OutputCancel).cancel
     console.log(results()) // 'RESULT'
-    console.log(results.result)
-    console.log(results.error)
+    console.log(results.isResult())
+    console.log((results as OutputResult).result)
   })
   it('basic usage - resultError', () => {
     const fn = (error: boolean) => {
@@ -26,16 +46,19 @@ describe('outputPins', () => {
       return error ? returnResult.error(new Error('error')) : returnResult('RESULT')
     }
     const results = fn(false)
-    if (results.isError()) throw results.error
+    if (results.isError()) throw (results as ResultError<'RESULT', Error, 'error'>).error
     console.log(results()) // 'RESULT'
+    console.log((results as ResultError<'RESULT', Error, 'result'>).result) // 'RESULT'
   })
   it('basic usage - resultNone', () => {
-    const fn = (none: boolean) => {
+    const fn = (error: boolean) => {
       const returnResult = resultNone<'RESULT', null>()
-      return none ? returnResult.none(null) : returnResult('RESULT')
+      return error ? returnResult.none(null) : returnResult('RESULT')
     }
     const results = fn(false)
-    if (!results.isNone()) console.log(results()) // 'RESULT'
+    if (results.isNone()) throw new Error('null')
+    console.log(results()) // 'RESULT'
+    console.log((results as ResultNone<'RESULT', null, 'result'>).result) // 'RESULT'
   })
   it('resultErrorOutputPins', () => {
     const re = resultError<'RESULT', 'ERROR'>({

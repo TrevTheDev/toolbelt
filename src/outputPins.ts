@@ -1,27 +1,43 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { callbackTee, capitalise } from './smallUtils'
-import { Identity } from './typescript utils'
+import { Identity, UnionToIntersection } from './typescript utils'
 
 export type PinDef = Record<string, [arg: unknown]> // { [pinName: string]: [arg: unknown] }
 
 export type OutputPinGetter<
   Pins extends PinDef,
-  SetPin extends keyof Pins = never,
-  RT = [SetPin] extends [never]
-    ? Identity<
-        { readonly setPin: keyof Pins } & { readonly [I in keyof Pins]?: Pins[I][0] } & {
-          [I in keyof Pins as `is${Capitalize<string & I>}`]: () => boolean
-        } & {
-          value(): Pins[keyof Pins][0]
-        }
-      >
-    : Identity<
-        { readonly setPin: SetPin } & { readonly [I in SetPin]: Pins[I][0] } & {
-          [I in keyof Pins as `is${Capitalize<string & I>}`]: () => I extends SetPin ? true : false
-        } & { value(): Pins[SetPin][0] }
-      > &
-        (() => [SetPin] extends [never] ? Pins[keyof Pins][0] : Pins[SetPin][0]),
-> = RT
+  SetPin extends keyof Pins = keyof Pins,
+  Getters = {
+    [P in SetPin]: Identity<
+      { readonly setPin: P } & { readonly [I in P]: Pins[I][0] } & {
+        [I in keyof Pins as `is${Capitalize<string & I>}`]: () => I extends P ? true : false
+      } & { value(): Pins[P][0] }
+    > &
+      (() => UnionToIntersection<Pins[SetPin][0]>)
+  },
+> = Getters[keyof Getters]
+
+// type Z = OutputPinGetter<{
+//   result: [result: 'R']
+//   error: [error: 'E']
+//   cancel: [cancelReason: 'C']
+// }>['isCancel']
+
+//   [SetPin] extends [never]
+//   ? Identity<
+//       { readonly setPin: keyof Pins } & { readonly [I in keyof Pins]?: Pins[I][0] } & {
+//         [I in keyof Pins as `is${Capitalize<string & I>}`]: () => boolean
+//       } & {
+//         value(): Pins[keyof Pins][0]
+//       }
+//     >
+//   : Identity<
+//       { readonly setPin: SetPin } & { readonly [I in SetPin]: Pins[I][0] } & {
+//         [I in keyof Pins as `is${Capitalize<string & I>}`]: () => I extends SetPin ? true : false
+//       } & { value(): Pins[SetPin][0] }
+//     > &
+//       (() => [SetPin] extends [never] ? Pins[keyof Pins][0] : Pins[SetPin][0]),
+// > = RT
 
 // Identity<
 //     {
@@ -287,37 +303,31 @@ export type ResultNoneSetter<ResultType, NoneType> = OutputPinSetter<
   'result'
 >
 
-export type ResultNone<ResultType, NoneType> = {
-  unset: OutputPinGetter<{
+export type ResultNone<
+  ResultType,
+  NoneType,
+  Type extends 'result' | 'none' = 'result' | 'none',
+> = OutputPinGetter<
+  {
     result: [result: ResultType]
     none: [none: NoneType]
-  }>
-  result: OutputPinGetter<
-    {
-      result: [result: ResultType]
-      none: [none: NoneType]
-    },
-    'result'
-  >
-  none: OutputPinGetter<
-    {
-      result: [result: ResultType]
-      none: [none: NoneType]
-    },
-    'none'
-  >
-}
+  },
+  Type
+>
 
 /**
  * Inspired by the `maybe` monad, this function returns a function object, that can have either a `result` or a `none` set.
  * 
  * @example
- *  const fn = (none: boolean) => {
-      const returnResult = resultNoneOutputPins<'RESULT', null>()
-      return none ? returnResult.none(null) : returnResult('RESULT')
+ *  const fn = (error: boolean) => {
+      const returnResult = resultNone<'RESULT', null>()
+      return error ? returnResult.none(null) : returnResult('RESULT')
     }
     const results = fn(false)
-    if (!results.isNone()) console.log(results()) // 'RESULT'
+    if (results.isNone()) throw new Error('null')
+    console.log(results()) // 'RESULT'
+    console.log((results as ResultNone<'RESULT', null, 'result'>).result) // 'RESULT'
+  
  *
  * @param callbacks : {
  *      onResult(callback: (result)=>void): void
@@ -334,8 +344,8 @@ export type ResultNone<ResultType, NoneType> = {
     * }
     *
     * OutputPinGetter: {
-    *   readonly result: result|never
-    *   readonly error: error|never
+    *   readonly result?: result
+    *   readonly error?: error
     *   value: result|error
     *   setPin: 'result'|'error'
     *   isResult(): boolean
@@ -356,12 +366,13 @@ export function resultNone<ResultType, NoneType>(
  * 
  * @example
  *  const fn = (error: boolean) => {
-      const returnResult = resultErrorOutputPins<'RESULT', Error>()
+      const returnResult = resultError<'RESULT', Error>()
       return error ? returnResult.error(new Error('error')) : returnResult('RESULT')
     }
     const results = fn(false)
-    if (results.isError()) throw results.error
+    if (results.isError()) throw (results as ResultError<'RESULT', Error, 'error'>).error
     console.log(results()) // 'RESULT'
+    console.log((results as ResultError<'RESULT', Error, 'result'>).result) // 'RESULT'
  *
  * @param callbacks : {
  *      onResult(callback: (result)=>void): void
@@ -378,8 +389,8 @@ export function resultNone<ResultType, NoneType>(
  * }
  *
  * OutputPinGetter: {
- *   readonly result: result|never
- *   readonly error: error|never
+ *   readonly result?: result
+ *   readonly error?: error
  *   value: result|error
  *   setPin: 'result'|'error'
  *   isResult(): boolean
@@ -390,26 +401,17 @@ export type ResultErrorSetter<ResultType, ErrorType> = OutputPinSetter<
   { result: [result: ResultType]; error: [error: ErrorType] },
   'result'
 >
-export type ResultError<ResultType, ErrorType> = {
-  unset: OutputPinGetter<{
+export type ResultError<
+  ResultType,
+  ErrorType,
+  Type extends 'result' | 'error' = 'result' | 'error',
+> = OutputPinGetter<
+  {
     result: [result: ResultType]
     error: [error: ErrorType]
-  }>
-  result: OutputPinGetter<
-    {
-      result: [result: ResultType]
-      error: [error: ErrorType]
-    },
-    'result'
-  >
-  error: OutputPinGetter<
-    {
-      result: [result: ResultType]
-      error: [error: ErrorType]
-    },
-    'error'
-  >
-}
+  },
+  Type
+>
 
 export function resultError<ResultType, ErrorType>(
   callbacks?: OutputPinCallbacks<{ result: [result: ResultType]; error: [error: ErrorType] }>,
@@ -417,7 +419,7 @@ export function resultError<ResultType, ErrorType>(
   return outputPins<{ result: [result: ResultType]; error: [error: ErrorType] }, 'result'>(
     'result',
     'error',
-  )(callbacks)
+  )(callbacks) // as unknown as ResultError<ResultType, ErrorType>
 }
 
 // const Nothing = Symbol('Nothing')

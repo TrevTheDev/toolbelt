@@ -38,4 +38,7 @@ export type {
   ResultError,
 } from './outputPins'
 
+export { didError, wrapTryCatchInDidError } from './did error'
+export type { DidError } from './did error'
+
 export * from './typescript utils'
